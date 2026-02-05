@@ -67,6 +67,7 @@ window.openBooking = (id, eventName, price, tierName) => {
 
     document.getElementById('modal-event-name').textContent = fullEventName;
     document.getElementById('modal-event-price').textContent = `KES ${price}`;
+    document.getElementById('instruction-amount').textContent = `KES ${price}`;
 
     // Add hidden input for tier if you want to track it separately, 
     // but for now we'll just use the Price/Amount to differentiate in STK
@@ -124,25 +125,35 @@ bookingForm.addEventListener('submit', async (e) => {
     payBtn.textContent = 'Processing...';
 
     if (selectedMethod === 'mpesa') {
-        // --- M-PESA FLOW ---
+        // --- MANUAL POCHI VERIFICATION FLOW ---
         const phone = document.getElementById('phone').value;
+        const transactionId = document.getElementById('transaction-id').value;
+
         try {
-            const res = await fetch(`${API_URL}/pay`, {
+            const res = await fetch(`${API_URL}/verify-payment`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phoneNumber: phone, amount, eventId, eventName: nameWithTier })
+                body: JSON.stringify({
+                    phoneNumber: phone,
+                    transactionId,
+                    amount,
+                    eventId,
+                    eventName: nameWithTier,
+                    name: name
+                })
             });
 
             const data = await res.json();
-            if (data.checkoutRequestID) {
+            if (data.status === 'pending') {
                 bookingForm.classList.add('hidden');
                 paymentStatus.classList.remove('hidden');
-                document.querySelector('#payment-status p').innerText = "Check your phone! Enter PIN to pay.";
+                document.querySelector('#payment-status p').innerText = "Verification Submitted!";
+                document.querySelector('#payment-status .info').innerText = "Admin is verifying your code. Ticket will be sent shortly.";
             } else {
-                throw new Error(data.error || 'M-Pesa init failed');
+                throw new Error(data.error || 'Verification failed');
             }
         } catch (error) {
-            alert('M-Pesa Error: ' + error.message);
+            alert('Error: ' + error.message);
             payBtn.disabled = false;
         }
 

@@ -71,9 +71,25 @@
                 <input type="hidden" id="amount">
 
                 <div id="mpesa-fields">
+                    <div class="pochi-instructions"
+                        style="background: #fdf2f8; border: 1px dashed var(--primary); padding: 12px; border-radius: 8px; margin-bottom: 15px; font-size: 0.85rem; color: var(--text-main);">
+                        <p style="margin: 0 0 5px 0;"><strong>How to Pay:</strong></p>
+                        <ol style="margin: 0; padding-left: 20px;">
+                            <li>Go to M-Pesa > Lipa na M-Pesa</li>
+                            <li>Select <strong>Pochi la Biashara</strong></li>
+                            <li>Enter Phone: <strong>0794173314</strong></li>
+                            <li>Enter Amount: <strong id="instruction-amount">KES 0</strong></li>
+                            <li>Paste the <strong>Transaction Code</strong> below</li>
+                        </ol>
+                    </div>
                     <div class="form-group">
-                        <label for="phone">M-Pesa Phone Number</label>
-                        <input type="tel" id="phone" name="phone" placeholder="0712345678">
+                        <label for="phone">Your M-Pesa Phone Number</label>
+                        <input type="tel" id="phone" name="phone" placeholder="0712345678" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="transaction-id">M-Pesa Transaction Code</label>
+                        <input type="text" id="transaction-id" name="transaction-id" placeholder="e.g. RJ52ABC123"
+                            required>
                     </div>
                 </div>
 

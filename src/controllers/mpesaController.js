@@ -1,6 +1,6 @@
 const axios = require('axios');
 const { getAccessToken, getStkPassword, getTimestamp } = require('../config/mpesa');
-const { db } = require('../config/firebase'); // Will be null if no credentials
+const { db } = require('../config/firebase');
 const { sendSMS } = require('../utils/sms');
 const { generateTicketId } = require('../utils/ticketGen');
 
@@ -11,12 +11,10 @@ exports.initiateSTKPush = async (req, res) => {
     try {
         const { phoneNumber, amount, eventId } = req.body;
 
-        // Basic validation
         if (!phoneNumber || !amount || !eventId) {
             return res.status(400).json({ error: 'Missing phone number, amount, or event ID' });
         }
 
-        // Format phone number (must be 254...)
         let formattedPhone = phoneNumber.replace('+', '');
         if (formattedPhone.startsWith('0')) {
             formattedPhone = '254' + formattedPhone.slice(1);
@@ -31,8 +29,10 @@ exports.initiateSTKPush = async (req, res) => {
         const password = getStkPassword();
 
         const transactionType = process.env.MPESA_TRANSACTION_TYPE || 'CustomerPayBillOnline';
-        const businessShortCode = process.env.MPESA_SHORTCODE; // Initiator
-        const partyB = transactionType === 'CustomerBuyGoodsOnline' ? (process.env.MPESA_TILL_NUMBER || businessShortCode) : businessShortCode;
+        const businessShortCode = process.env.MPESA_SHORTCODE;
+        const partyB = transactionType === 'CustomerBuyGoodsOnline'
+            ? (process.env.MPESA_TILL_NUMBER || businessShortCode)
+            : businessShortCode;
 
         const data = {
             "BusinessShortCode": businessShortCode,
@@ -44,15 +44,14 @@ exports.initiateSTKPush = async (req, res) => {
             "PartyB": partyB,
             "PhoneNumber": formattedPhone,
             "CallBackURL": `${process.env.BASE_URL}/api/callback`,
-            "AccountReference": "9821671",
-            "TransactionDesc": "The Grey Pageant"
+            "AccountReference": partyB,
+            "TransactionDesc": "The Grey Pageant Ticket Purchase"
         };
 
         const response = await axios.post(url, data, {
             headers: { Authorization: `Bearer ${accessToken}` }
         });
 
-        // In a real app, save 'CheckoutRequestID' to DB to track this pending transaction
         console.log(`🚀 STK Push initiated for ${formattedPhone}. checkoutRequestID: ${response.data.CheckoutRequestID}`);
 
         res.json({
@@ -74,7 +73,6 @@ exports.handleCallback = async (req, res) => {
     try {
         console.log('🔔 M-Pesa Callback Received:', JSON.stringify(req.body, null, 2));
 
-        // SECURITY: Validate callback secret to prevent fake payments
         const callbackSecret = req.headers['x-callback-secret'];
         const expectedSecret = process.env.MPESA_CALLBACK_SECRET;
 
@@ -87,11 +85,9 @@ exports.handleCallback = async (req, res) => {
 
         if (body.ResultCode !== 0) {
             console.log('❌ Payment Cancelled or Failed:', body.ResultDesc);
-            // Update transaction status to 'FAILED' in DB
             return res.json({ result: 'fail' });
         }
 
-        // --- PAYMENT SUCCESSFUL ---
         const meta = body.CallbackMetadata.Item;
         function getValue(name) {
             return meta.find(o => o.Name === name)?.Value;
@@ -101,9 +97,6 @@ exports.handleCallback = async (req, res) => {
         const mpesaReceiptNumber = getValue('MpesaReceiptNumber');
         const phoneNumber = getValue('PhoneNumber');
 
-        // In reality, you'd match CheckoutRequestID to find which event this is for.
-        // For this demo, we'll assume a dummy event or pass it in via param if possible (not in callback).
-        // Let's hardcode an event for the demo callback flow.
         const eventId = req.body.eventId || 'evt_grey_pageant';
         const eventName = req.body.eventName || 'The Grey Pageant';
 
@@ -111,7 +104,6 @@ exports.handleCallback = async (req, res) => {
 
         console.log(`✅ Payment Success! Receipt: ${mpesaReceiptNumber}, Amount: ${amount}`);
 
-        // 1. Save Booking to Firestore (if available)
         const bookingData = {
             mpesaReceiptNumber,
             phoneNumber,
@@ -130,17 +122,12 @@ exports.handleCallback = async (req, res) => {
             console.log('⚠️ Firestore not configured. Booking data (Mock):', bookingData);
         }
 
-        // 2. Send SMS Ticket
         const message = `✅ Payment Success! Your Ticket for ${eventName} at Marine Park is confirmed.\n🎫 Ticket No: ${ticketId}\nRef: ${mpesaReceiptNumber}\nSee you there!`;
-
-        // Admin Notification Message
         const adminMessage = `🔔 New Booking Alert!\nEvent: ${eventName}\nTicket: ${ticketId}\nRef: ${mpesaReceiptNumber}\nUser: ${phoneNumber}`;
         const ADMIN_PHONE = '+254794173314';
 
         try {
-            // Send to User
             await sendSMS(phoneNumber, message);
-            // Send to Admin
             await sendSMS(ADMIN_PHONE, adminMessage);
             console.log('🔔 Admin notification sent.');
         } catch (smsError) {
@@ -153,5 +140,59 @@ exports.handleCallback = async (req, res) => {
         console.error('❌ Callback Error Detail:', error.message);
         console.error('❌ Stack Trace:', error.stack);
         res.status(500).json({ error: 'Internal Server Error', detail: error.message });
+    }
+};
+
+/**
+ * Handle Manual Transaction Verification
+ */
+exports.submitManualVerification = async (req, res) => {
+    try {
+        const { phoneNumber, transactionId, amount, eventId, eventName, name } = req.body;
+
+        if (!transactionId || !phoneNumber) {
+            return res.status(400).json({ error: 'Missing transaction ID or phone number' });
+        }
+
+        const ticketId = generateTicketId();
+
+        const bookingData = {
+            mpesaReceiptNumber: transactionId.toUpperCase(),
+            phoneNumber,
+            userName: name,
+            amount: parseFloat(amount),
+            eventId,
+            eventName,
+            ticketId,
+            status: 'PENDING_VERIFICATION',
+            timestamp: new Date().toISOString(),
+            method: 'MANUAL_POCHI'
+        };
+
+        if (db) {
+            await db.collection('bookings').add(bookingData);
+            console.log(`📥 Manual verification submitted: ${transactionId} by ${phoneNumber}`);
+        } else {
+            console.log('⚠️ db not configured. Mock booking:', bookingData);
+        }
+
+        const ADMIN_PHONE = process.env.ADMIN_PHONE || '+254794173314';
+        const adminMsg = `🔔 New Manual Payment!\nName: ${name}\nPhone: ${phoneNumber}\nAmount: ${amount}\nCode: ${transactionId}\nTicket: ${ticketId}\nVerify then approve in dashboard.`;
+
+        try {
+            await sendSMS(ADMIN_PHONE, adminMsg);
+        } catch (s) {
+            console.log('Admin SMS notify failed');
+        }
+
+        res.json({
+            message: 'Verification submitted successfully',
+            status: 'pending',
+            ticketId: ticketId
+        });
+
+    } catch (error) {
+        console.error('❌ Manual Verify Error:', error);
+        res.status(500).json({ error: 'Failed to submit verification' });
     }
 };

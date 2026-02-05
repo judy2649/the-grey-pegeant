@@ -42,7 +42,10 @@ router.post('/pay', mpesaController.initiateSTKPush);
 // POST /api/callback
 router.post('/callback', mpesaController.handleCallback);
 
-// 4. Stripe Routes
+// 4. Manual Verification
+router.post('/verify-payment', mpesaController.submitManualVerification);
+
+// 5. Stripe Routes
 router.post('/create-payment-intent', stripeController.createPaymentIntent);
 router.post('/stripe-success', stripeController.handlePaymentSuccess);
 
