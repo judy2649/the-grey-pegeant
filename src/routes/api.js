@@ -14,7 +14,7 @@ const eventController = {
                 name: 'The Grey Pageant',
                 date: '2026-02-13',
                 time: '06:00 PM',
-                venue: 'Chuka University',
+                venue: 'Marine Park',
                 totalTickets: 600,
                 image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=1000&auto=format&fit=crop', // Beautiful event image
                 tiers: [

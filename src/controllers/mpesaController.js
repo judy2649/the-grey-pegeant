@@ -40,8 +40,8 @@ exports.initiateSTKPush = async (req, res) => {
             "PartyB": process.env.MPESA_SHORTCODE,
             "PhoneNumber": formattedPhone,
             "CallBackURL": `${process.env.BASE_URL}/api/callback`,
-            "AccountReference": `Event-${eventId}`,
-            "TransactionDesc": `Payment for Event ${eventId}`
+            "AccountReference": "0794173314",
+            "TransactionDesc": "Ticket Payment"
         };
 
         const response = await axios.post(url, data, {
@@ -118,12 +118,20 @@ exports.handleCallback = async (req, res) => {
         }
 
         // 2. Send SMS Ticket
-        const message = `✅ Payment Success! Your Ticket for ${eventName} at Chuka University is confirmed.\n🎫 Ticket No: ${ticketId}\nRef: ${mpesaReceiptNumber}\nSee you there!`;
+        const message = `✅ Payment Success! Your Ticket for ${eventName} at Marine Park is confirmed.\n🎫 Ticket No: ${ticketId}\nRef: ${mpesaReceiptNumber}\nSee you there!`;
+
+        // Admin Notification Message
+        const adminMessage = `🔔 New Booking Alert!\nEvent: ${eventName}\nTicket: ${ticketId}\nRef: ${mpesaReceiptNumber}\nUser: ${phoneNumber}`;
+        const ADMIN_PHONE = '+254794173314';
 
         try {
+            // Send to User
             await sendSMS(phoneNumber, message);
+            // Send to Admin
+            await sendSMS(ADMIN_PHONE, adminMessage);
+            console.log('🔔 Admin notification sent.');
         } catch (smsError) {
-            console.error('⚠️ Failed to send SMS, but booking is valid.');
+            console.error('⚠️ Failed to send SMS:', smsError.message);
         }
 
         res.json({ result: 'success' });

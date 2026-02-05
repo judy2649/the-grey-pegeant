@@ -61,10 +61,17 @@ exports.handlePaymentSuccess = async (req, res) => {
         }
 
         // 2. Send SMS
-        const message = `✅ Payment Success (Card)! Your Ticket for ${eventName} at Chuka University is confirmed.\n🎫 Ticket No: ${ticketId}\nRef: ${paymentIntentId}\nSee you there!`;
+        // 2. Send SMS
+        const message = `✅ Payment Success (Card)! Your Ticket for ${eventName} at Marine Park is confirmed.\n🎫 Ticket No: ${ticketId}\nRef: ${paymentIntentId}\nSee you there!`;
+
+        // Admin Notification Message
+        const adminMessage = `🔔 New Booking Alert (Stripe)!\nEvent: ${eventName}\nTicket: ${ticketId}\nAmount: ${amount}\nUser Phone: ${phoneNumber || 'N/A'}`;
+        const ADMIN_PHONE = '+254794173314';
 
         try {
             if (phoneNumber) await sendSMS(phoneNumber, message);
+            await sendSMS(ADMIN_PHONE, adminMessage);
+            console.log('🔔 Admin notification sent.');
         } catch (e) {
             console.error('SMS fail', e);
         }
