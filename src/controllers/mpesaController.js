@@ -104,7 +104,7 @@ exports.handleCallback = async (req, res) => {
         // In reality, you'd match CheckoutRequestID to find which event this is for.
         // For this demo, we'll assume a dummy event or pass it in via param if possible (not in callback).
         // Let's hardcode an event for the demo callback flow.
-        // Use event name from request or default
+        const eventId = req.body.eventId || 'evt_grey_pageant';
         const eventName = req.body.eventName || 'The Grey Pageant';
 
         const ticketId = generateTicketId();
@@ -150,7 +150,8 @@ exports.handleCallback = async (req, res) => {
         res.json({ result: 'success' });
 
     } catch (error) {
-        console.error('❌ Callback Error:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        console.error('❌ Callback Error Detail:', error.message);
+        console.error('❌ Stack Trace:', error.stack);
+        res.status(500).json({ error: 'Internal Server Error', detail: error.message });
     }
 };

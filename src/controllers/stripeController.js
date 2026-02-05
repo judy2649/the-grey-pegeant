@@ -6,12 +6,15 @@ const { db } = require('../config/firebase');
 
 dotenv.config();
 
-const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
 exports.createPaymentIntent = async (req, res) => {
     try {
         const { amount, currency = 'kes', eventName, phoneNumber } = req.body;
 
+        if (!stripe) {
+            return res.status(500).json({ error: 'Stripe is not configured on the server. Please add STRIPE_SECRET_KEY to environment variables.' });
+        }
         const paymentIntent = await stripe.paymentIntents.create({
             amount: amount * 100, // Stripe expects amounts in cents (approx. for KES)
             currency: currency,
