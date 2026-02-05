@@ -30,18 +30,22 @@ exports.initiateSTKPush = async (req, res) => {
         const timestamp = getTimestamp();
         const password = getStkPassword();
 
+        const transactionType = process.env.MPESA_TRANSACTION_TYPE || 'CustomerPayBillOnline';
+        const businessShortCode = process.env.MPESA_SHORTCODE; // Initiator
+        const partyB = transactionType === 'CustomerBuyGoodsOnline' ? (process.env.MPESA_TILL_NUMBER || businessShortCode) : businessShortCode;
+
         const data = {
-            "BusinessShortCode": process.env.MPESA_SHORTCODE,
+            "BusinessShortCode": businessShortCode,
             "Password": password,
             "Timestamp": timestamp,
-            "TransactionType": "CustomerPayBillOnline", // or CustomerBuyGoodsOnline
+            "TransactionType": transactionType,
             "Amount": amount,
             "PartyA": formattedPhone,
-            "PartyB": process.env.MPESA_SHORTCODE,
+            "PartyB": partyB,
             "PhoneNumber": formattedPhone,
             "CallBackURL": `${process.env.BASE_URL}/api/callback`,
-            "AccountReference": "0794173314",
-            "TransactionDesc": "Ticket Payment"
+            "AccountReference": "9821671",
+            "TransactionDesc": "The Grey Pageant"
         };
 
         const response = await axios.post(url, data, {
@@ -69,6 +73,15 @@ exports.initiateSTKPush = async (req, res) => {
 exports.handleCallback = async (req, res) => {
     try {
         console.log('🔔 M-Pesa Callback Received:', JSON.stringify(req.body, null, 2));
+
+        // SECURITY: Validate callback secret to prevent fake payments
+        const callbackSecret = req.headers['x-callback-secret'];
+        const expectedSecret = process.env.MPESA_CALLBACK_SECRET;
+
+        if (expectedSecret && callbackSecret !== expectedSecret) {
+            console.error('❌ Invalid callback secret. Possible fake payment attempt!');
+            return res.status(403).json({ error: 'Forbidden' });
+        }
 
         const body = req.body.Body.stkCallback;
 
