@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Grey Pegeant</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Great+Vibes&display=swap"
+        rel="stylesheet">
+    <script src="https://js.stripe.com/v3/"></script>
+</head>
+
+<body>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container nav-container">
+            <div class="logo">
+                <span class="logo-icon">👑</span> The Grey Pegeant
+            </div>
+            <div class="nav-links">
+                <a href="#" class="active">Home</a>
+                <a href="#">My Tickets</a>
+                <div class="user-profile">JA</div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="hero">
+        <div class="container">
+            <h1 class="hero-title">Welcome to The Grey Pegeant</h1>
+            <p>Join us for an unforgettable evening of elegance, talent, and celebration at Chuka University. We can't
+                wait to host you!</p>
+            <div class="search-bar hidden">
+                <!-- Search hidden for single event -->
+                <input type="text" placeholder="Search events...">
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Categories removed -->
+
+        <h2 class="section-title">Upcoming Event</h2>
+
+        <div id="events-container">
+            <!-- Events will be loaded here -->
+            <p class="loading">Loading events...</p>
+        </div>
+    </main>
+
+    <!-- Booking Modal -->
+    <div id="booking-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <div class="modal-header">
+                <h2 id="modal-event-name">Event Name</h2>
+                <span id="modal-event-price" class="price-badge">KES 0</span>
+            </div>
+
+            <!-- Payment Method Toggle -->
+            <div class="payment-methods">
+                <button class="method-btn active" id="method-mpesa" onclick="toggleMethod('mpesa')">📲 M-Pesa</button>
+                <button class="method-btn" id="method-card" onclick="toggleMethod('card')">💳 Card</button>
+            </div>
+
+            <form id="booking-form">
+                <input type="hidden" id="event-id">
+                <input type="hidden" id="amount">
+
+                <div id="mpesa-fields">
+                    <div class="form-group">
+                        <label for="phone">M-Pesa Phone Number</label>
+                        <input type="tel" id="phone" name="phone" placeholder="0712345678">
+                    </div>
+                </div>
+
+                <div id="stripe-fields" class="hidden">
+                    <div class="form-group">
+                        <label>Card Details</label>
+                        <div id="card-element"><!--Stripe.js injects here--></div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="name">Your Name</label>
+                    <input type="text" id="name" name="name" placeholder="John Doe" required>
+                </div>
+
+                <div id="card-errors" role="alert" style="color: red; margin-bottom: 10px;"></div>
+
+                <button type="submit" class="btn-primary" id="pay-btn">Pay with M-Pesa</button>
+            </form>
+
+            <div id="payment-status" class="hidden">
+                <div class="spinner"></div>
+                <p>Check your phone! Enter PIN to pay.</p>
+                <p class="info">Ticket will be sent via SMS shortly.</p>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>© 2026 TicketHub Kenya</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
