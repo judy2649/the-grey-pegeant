@@ -98,15 +98,26 @@ window.toggleMethod = (method) => {
     document.getElementById('method-mpesa').classList.toggle('active', method === 'mpesa');
     document.getElementById('method-card').classList.toggle('active', method === 'card');
 
+    const phoneInput = document.getElementById('phone');
+    const cardPhoneInput = document.getElementById('card-phone');
+
     if (method === 'mpesa') {
         document.getElementById('mpesa-fields').classList.remove('hidden');
         document.getElementById('stripe-fields').classList.add('hidden');
         document.getElementById('pay-btn').textContent = 'Pay with M-Pesa';
+        // Toggle required attributes
+        phoneInput.setAttribute('required', '');
+        cardPhoneInput.removeAttribute('required');
     } else {
         document.getElementById('mpesa-fields').classList.add('hidden');
         document.getElementById('stripe-fields').classList.remove('hidden');
         document.getElementById('pay-btn').textContent = 'Pay with Card';
+        // Toggle required attributes
+        phoneInput.removeAttribute('required');
+        cardPhoneInput.setAttribute('required', '');
     }
+    // Clear any previous errors
+    document.getElementById('card-errors').textContent = '';
 };
 
 // Poll for M-Pesa payment status

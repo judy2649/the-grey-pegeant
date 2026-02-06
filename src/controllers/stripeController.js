@@ -10,20 +10,27 @@ const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_
 
 exports.createPaymentIntent = async (req, res) => {
     try {
-        const { amount, currency = 'kes', eventName, phoneNumber } = req.body;
+        const { amount, eventName, phoneNumber } = req.body;
 
         if (!stripe) {
             return res.status(500).json({ error: 'Stripe is not configured on the server. Please add STRIPE_SECRET_KEY to environment variables.' });
         }
+
+        // Stripe does not support KES directly. Convert KES to USD (approximate rate).
+        // Using a rough rate of 1 USD = 130 KES for test purposes.
+        const exchangeRate = parseFloat(process.env.KES_TO_USD_RATE) || 130;
+        const amountInUSD = Math.ceil((parseFloat(amount) / exchangeRate) * 100); // Amount in cents
+        const minAmount = 50; // Stripe minimum is $0.50 = 50 cents
+        const finalAmount = Math.max(amountInUSD, minAmount);
+
         const paymentIntent = await stripe.paymentIntents.create({
-            amount: amount * 100, // Stripe expects amounts in cents (approx. for KES)
-            currency: currency,
-            automatic_payment_methods: {
-                enabled: true,
-            },
+            amount: finalAmount,
+            currency: 'usd',
+            payment_method_types: ['card'],
             metadata: {
                 eventName,
-                phoneNumber
+                phoneNumber,
+                originalAmountKES: amount
             }
         });
 
@@ -63,7 +70,6 @@ exports.handlePaymentSuccess = async (req, res) => {
             await db.collection('bookings').add(bookingData);
         }
 
-        // 2. Send SMS
         // 2. Send SMS
         const message = `✅ Payment Success (Card)! Your Ticket for ${eventName} at Marine Park is confirmed.\n🎫 Ticket No: ${ticketId}\nRef: ${paymentIntentId}\nSee you there!`;
 

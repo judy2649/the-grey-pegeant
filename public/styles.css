@@ -3,10 +3,6 @@
     /* Pink-500 */
     --primary-dark: #DB2777;
     /* Pink-600 */
-    --primary: #EC4899;
-    /* Pink-500 */
-    --primary-dark: #DB2777;
-    /* Pink-600 */
     --secondary: #F472B6;
     /* Pink-400 accent */
     --bg-color: #F3F4F6;
@@ -283,12 +279,29 @@ body {
 
 .modal-content {
     background: white;
+    color: var(--text-main);
     padding: 30px;
     border-radius: 16px;
     width: 90%;
     max-width: 400px;
     position: relative;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.modal-content h2 {
+    color: var(--text-main);
+}
+
+.modal-content label {
+    color: var(--text-main);
+    font-weight: 500;
+    font-size: 0.9rem;
+    display: block;
+    margin-bottom: 6px;
+}
+
+.modal-content p {
+    color: var(--text-main);
 }
 
 .close-btn {
@@ -337,13 +350,23 @@ body {
 .btn-primary {
     width: 100%;
     padding: 14px;
-    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    background: linear-gradient(135deg, #EC4899 0%, #DB2777 100%);
     color: white;
     border: none;
     border-radius: 8px;
     font-weight: 600;
     font-size: 1rem;
     cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.btn-primary:hover {
+    opacity: 0.9;
+}
+
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .spinner {
@@ -370,6 +393,56 @@ body {
     text-align: center;
     color: #6b7280;
     font-size: 0.9rem;
+}
+
+/* Payment Method Toggle */
+.payment-methods {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.method-btn {
+    flex: 1;
+    padding: 10px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    background: var(--white);
+    color: var(--text-light);
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.method-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.method-btn.active {
+    border-color: var(--primary);
+    background: #fdf2f8;
+    color: var(--primary-dark);
+}
+
+/* Stripe Card Element */
+#card-element {
+    padding: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: white;
+}
+
+/* Payment status section */
+#payment-status {
+    text-align: center;
+    padding: 20px 0;
+}
+
+#payment-status p {
+    color: var(--text-main);
+    font-weight: 600;
 }
 
 .hidden {
