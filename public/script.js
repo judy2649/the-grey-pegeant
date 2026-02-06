@@ -86,7 +86,7 @@ window.onclick = (e) => {
 }
 
 // Stripe Init
-const stripe = Stripe('pk_test_TYooMQauvdEDq54NiTphI7jx'); // Replace with your Publishable Key
+const stripe = Stripe('pk_test_51Sxw4eLRhlfVEwJw6BLjczqycD8bSHc02HUwleEQnAEkBOrdC6VawKzfyIeOGrBxvhoG0ogHBGtitRFoGpECeUbN00vkv12p8l');
 const elements = stripe.elements();
 const card = elements.create('card');
 card.mount('#card-element');
