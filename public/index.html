@@ -84,8 +84,13 @@
 
                 <div id="stripe-fields" class="hidden">
                     <div class="form-group">
+                        <label for="card-phone">Phone Number (for ticket SMS)</label>
+                        <input type="tel" id="card-phone" name="card-phone" placeholder="0712345678" required>
+                    </div>
+                    <div class="form-group">
                         <label>Card Details</label>
                         <div id="card-element"><!--Stripe.js injects here--></div>
+                        <p style="font-size: 0.75rem; color: var(--text-light); margin-top: 6px;">Test card: 4242 4242 4242 4242, any future date, any CVC</p>
                     </div>
                 </div>
 

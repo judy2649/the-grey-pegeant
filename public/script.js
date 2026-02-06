@@ -195,16 +195,22 @@ bookingForm.addEventListener('submit', async (e) => {
 
     } else {
         // --- STRIPE FLOW ---
+        // Get the phone number from the card phone input field
+        const cardPhone = document.getElementById('card-phone') ? document.getElementById('card-phone').value : '';
+
         try {
             const res = await fetch(`${API_URL}/create-payment-intent`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount, eventName: nameWithTier, phoneNumber: 'N/A' })
+                body: JSON.stringify({ amount, eventName: nameWithTier, phoneNumber: cardPhone })
             });
 
-            const { clientSecret } = await res.json();
+            const data = await res.json();
+            if (data.error) {
+                throw new Error(data.error);
+            }
 
-            const result = await stripe.confirmCardPayment(clientSecret, {
+            const result = await stripe.confirmCardPayment(data.clientSecret, {
                 payment_method: {
                     card: card,
                     billing_details: { name: name }
@@ -217,6 +223,14 @@ bookingForm.addEventListener('submit', async (e) => {
                 payBtn.textContent = 'Pay with Card';
             } else {
                 if (result.paymentIntent.status === 'succeeded') {
+                    // Format phone for SMS
+                    let smsPhone = cardPhone;
+                    if (smsPhone.startsWith('0')) {
+                        smsPhone = '+254' + smsPhone.slice(1);
+                    } else if (smsPhone && !smsPhone.startsWith('+')) {
+                        smsPhone = '+' + smsPhone;
+                    }
+
                     const confirmRes = await fetch(`${API_URL}/stripe-success`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -224,7 +238,7 @@ bookingForm.addEventListener('submit', async (e) => {
                             paymentIntentId: result.paymentIntent.id,
                             eventName: nameWithTier,
                             amount,
-                            phoneNumber: '0000000000'
+                            phoneNumber: smsPhone
                         })
                     });
                     const confirmData = await confirmRes.json();
@@ -232,14 +246,15 @@ bookingForm.addEventListener('submit', async (e) => {
                     bookingForm.classList.add('hidden');
                     paymentStatus.classList.remove('hidden');
                     document.querySelector('#payment-status .spinner').style.display = 'none';
-                    document.querySelector('#payment-status p').innerText = `Payment Successful! Ticket ID: ${confirmData.ticketId}`;
-                    document.querySelector('#payment-status .info').innerText = 'Your ticket has been confirmed.';
+                    document.querySelector('#payment-status p').innerText = `Payment Successful! Ticket No: ${confirmData.ticketId}`;
+                    document.querySelector('#payment-status .info').innerText = 'An SMS with your ticket details has been sent to your phone.';
                 }
             }
         } catch (error) {
             console.error(error);
-            alert('Card Error: ' + error.message);
+            document.getElementById('card-errors').textContent = error.message || 'Card payment failed. Please try again.';
             payBtn.disabled = false;
+            payBtn.textContent = 'Pay with Card';
         }
     }
 });
