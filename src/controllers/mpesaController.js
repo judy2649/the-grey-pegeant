@@ -124,7 +124,7 @@ exports.handleCallback = async (req, res) => {
 
         const message = `✅ Payment Success! Your Ticket for ${eventName} at Marine Park is confirmed.\n🎫 Ticket No: ${ticketId}\nRef: ${mpesaReceiptNumber}\nSee you there!`;
         const adminMessage = `🔔 New Booking Alert!\nEvent: ${eventName}\nTicket: ${ticketId}\nRef: ${mpesaReceiptNumber}\nUser: ${phoneNumber}`;
-        const ADMIN_PHONE = '+254794173314';
+        const ADMIN_PHONE = process.env.ADMIN_PHONE || '+254712369221';
 
         try {
             await sendSMS(phoneNumber, message);
@@ -176,8 +176,25 @@ exports.submitManualVerification = async (req, res) => {
             console.log('⚠️ db not configured. Mock booking:', bookingData);
         }
 
-        const ADMIN_PHONE = process.env.ADMIN_PHONE || '+254794173314';
-        const adminMsg = `🔔 New Manual Payment!\nName: ${name}\nPhone: ${phoneNumber}\nAmount: ${amount}\nCode: ${transactionId}\nTicket: ${ticketId}\nVerify then approve in dashboard.`;
+        // Send SMS confirmation to the user with their ticket number
+        let formattedUserPhone = phoneNumber;
+        if (formattedUserPhone.startsWith('0')) {
+            formattedUserPhone = '+254' + formattedUserPhone.slice(1);
+        } else if (!formattedUserPhone.startsWith('+')) {
+            formattedUserPhone = '+' + formattedUserPhone;
+        }
+
+        const userMsg = `Thank you for your payment! Your ticket for ${eventName} at Marine Park is confirmed.\nTicket No: ${ticketId}\nRef: ${transactionId.toUpperCase()}\nSee you there!`;
+
+        const ADMIN_PHONE = process.env.ADMIN_PHONE || '+254712369221';
+        const adminMsg = `New Booking!\nName: ${name}\nPhone: ${phoneNumber}\nAmount: ${amount}\nCode: ${transactionId}\nTicket: ${ticketId}\nVerify then approve in dashboard.`;
+
+        try {
+            await sendSMS(formattedUserPhone, userMsg);
+            console.log(`SMS sent to user ${formattedUserPhone} with ticket ${ticketId}`);
+        } catch (smsErr) {
+            console.error('User SMS failed:', smsErr.message);
+        }
 
         try {
             await sendSMS(ADMIN_PHONE, adminMsg);
@@ -186,8 +203,8 @@ exports.submitManualVerification = async (req, res) => {
         }
 
         res.json({
-            message: 'Verification submitted successfully',
-            status: 'pending',
+            message: 'Payment confirmed! Check your phone for ticket details.',
+            status: 'confirmed',
             ticketId: ticketId
         });
 

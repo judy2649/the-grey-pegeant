@@ -144,11 +144,12 @@ bookingForm.addEventListener('submit', async (e) => {
             });
 
             const data = await res.json();
-            if (data.status === 'pending') {
+            if (data.status === 'confirmed' || data.status === 'pending') {
                 bookingForm.classList.add('hidden');
                 paymentStatus.classList.remove('hidden');
-                document.querySelector('#payment-status p').innerText = "Verification Submitted!";
-                document.querySelector('#payment-status .info').innerText = "Admin is verifying your code. Ticket will be sent shortly.";
+                document.querySelector('#payment-status .spinner').style.display = 'none';
+                document.querySelector('#payment-status p').innerText = `Payment Confirmed! Ticket No: ${data.ticketId}`;
+                document.querySelector('#payment-status .info').innerText = "An SMS with your ticket details has been sent to your phone.";
             } else {
                 throw new Error(data.error || 'Verification failed');
             }
