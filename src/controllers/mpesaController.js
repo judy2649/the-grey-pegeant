@@ -4,12 +4,16 @@ const { db } = require('../config/firebase');
 const { sendSMS } = require('../utils/sms');
 const { generateTicketId } = require('../utils/ticketGen');
 
+// In-memory store to track payment statuses by checkoutRequestID
+// In production, use Redis or a database
+const paymentTracker = {};
+
 /**
  * Initiate STK Push
  */
 exports.initiateSTKPush = async (req, res) => {
     try {
-        const { phoneNumber, amount, eventId } = req.body;
+        const { phoneNumber, amount, eventId, eventName, name } = req.body;
 
         if (!phoneNumber || !amount || !eventId) {
             return res.status(400).json({ error: 'Missing phone number, amount, or event ID' });
@@ -52,17 +56,31 @@ exports.initiateSTKPush = async (req, res) => {
             headers: { Authorization: `Bearer ${accessToken}` }
         });
 
-        console.log(`🚀 STK Push initiated for ${formattedPhone}. checkoutRequestID: ${response.data.CheckoutRequestID}`);
+        const checkoutRequestID = response.data.CheckoutRequestID;
+
+        // Track the payment with metadata for later use in the callback
+        paymentTracker[checkoutRequestID] = {
+            status: 'PENDING',
+            phoneNumber: formattedPhone,
+            originalPhone: phoneNumber,
+            amount,
+            eventId,
+            eventName: eventName || 'The Grey Pageant',
+            name: name || '',
+            timestamp: new Date().toISOString()
+        };
+
+        console.log(`STK Push initiated for ${formattedPhone}. CheckoutRequestID: ${checkoutRequestID}`);
 
         res.json({
-            message: 'STK Push initiated successfully',
-            checkoutRequestID: response.data.CheckoutRequestID,
+            message: 'STK Push initiated successfully. Check your phone.',
+            checkoutRequestID: checkoutRequestID,
             responseCode: response.data.ResponseCode
         });
 
     } catch (error) {
-        console.error('❌ STK Push Error:', error.response ? error.response.data : error.message);
-        res.status(500).json({ error: 'Failed to initiate M-Pesa payment' });
+        console.error('STK Push Error:', error.response ? error.response.data : error.message);
+        res.status(500).json({ error: 'Failed to initiate M-Pesa payment. Please try again.' });
     }
 };
 
@@ -71,20 +89,26 @@ exports.initiateSTKPush = async (req, res) => {
  */
 exports.handleCallback = async (req, res) => {
     try {
-        console.log('🔔 M-Pesa Callback Received:', JSON.stringify(req.body, null, 2));
+        console.log('M-Pesa Callback Received:', JSON.stringify(req.body, null, 2));
 
         const callbackSecret = req.headers['x-callback-secret'];
         const expectedSecret = process.env.MPESA_CALLBACK_SECRET;
 
         if (expectedSecret && callbackSecret !== expectedSecret) {
-            console.error('❌ Invalid callback secret. Possible fake payment attempt!');
+            console.error('Invalid callback secret. Possible fake payment attempt!');
             return res.status(403).json({ error: 'Forbidden' });
         }
 
         const body = req.body.Body.stkCallback;
+        const checkoutRequestID = body.CheckoutRequestID;
 
         if (body.ResultCode !== 0) {
-            console.log('❌ Payment Cancelled or Failed:', body.ResultDesc);
+            console.log('Payment Cancelled or Failed:', body.ResultDesc);
+            // Update tracker
+            if (paymentTracker[checkoutRequestID]) {
+                paymentTracker[checkoutRequestID].status = 'FAILED';
+                paymentTracker[checkoutRequestID].reason = body.ResultDesc;
+            }
             return res.json({ result: 'fail' });
         }
 
@@ -97,16 +121,19 @@ exports.handleCallback = async (req, res) => {
         const mpesaReceiptNumber = getValue('MpesaReceiptNumber');
         const phoneNumber = getValue('PhoneNumber');
 
-        const eventId = req.body.eventId || 'evt_grey_pageant';
-        const eventName = req.body.eventName || 'The Grey Pageant';
+        // Get metadata from tracker
+        const tracked = paymentTracker[checkoutRequestID] || {};
+        const eventId = tracked.eventId || 'evt_grey_pageant';
+        const eventName = tracked.eventName || 'The Grey Pageant';
 
         const ticketId = generateTicketId();
 
-        console.log(`✅ Payment Success! Receipt: ${mpesaReceiptNumber}, Amount: ${amount}`);
+        console.log(`Payment Success! Receipt: ${mpesaReceiptNumber}, Amount: ${amount}`);
 
         const bookingData = {
             mpesaReceiptNumber,
             phoneNumber,
+            userName: tracked.name || '',
             amount,
             eventId,
             eventName,
@@ -117,34 +144,83 @@ exports.handleCallback = async (req, res) => {
 
         if (db) {
             await db.collection('bookings').add(bookingData);
-            console.log('💾 Booking saved to Firestore');
+            console.log('Booking saved to Firestore');
         } else {
-            console.log('⚠️ Firestore not configured. Booking data (Mock):', bookingData);
+            console.log('Firestore not configured. Booking data (Mock):', bookingData);
         }
 
-        const message = `✅ Payment Success! Your Ticket for ${eventName} at Marine Park is confirmed.\n🎫 Ticket No: ${ticketId}\nRef: ${mpesaReceiptNumber}\nSee you there!`;
-        const adminMessage = `🔔 New Booking Alert!\nEvent: ${eventName}\nTicket: ${ticketId}\nRef: ${mpesaReceiptNumber}\nUser: ${phoneNumber}`;
+        // Update payment tracker so the frontend poll gets the result
+        if (paymentTracker[checkoutRequestID]) {
+            paymentTracker[checkoutRequestID].status = 'PAID';
+            paymentTracker[checkoutRequestID].ticketId = ticketId;
+            paymentTracker[checkoutRequestID].mpesaReceiptNumber = mpesaReceiptNumber;
+        }
+
+        // Format phone for SMS
+        let smsPhone = String(phoneNumber);
+        if (smsPhone.startsWith('254')) {
+            smsPhone = '+' + smsPhone;
+        } else if (!smsPhone.startsWith('+')) {
+            smsPhone = '+' + smsPhone;
+        }
+
+        const userMessage = `Thank you for your payment! Your ticket for ${eventName} at Marine Park is confirmed.\nTicket No: ${ticketId}\nRef: ${mpesaReceiptNumber}\nSee you there!`;
+        const adminMessage = `New Booking Alert!\nEvent: ${eventName}\nTicket: ${ticketId}\nRef: ${mpesaReceiptNumber}\nUser: ${smsPhone}\nAmount: ${amount}`;
         const ADMIN_PHONE = process.env.ADMIN_PHONE || '+254712369221';
 
         try {
-            await sendSMS(phoneNumber, message);
-            await sendSMS(ADMIN_PHONE, adminMessage);
-            console.log('🔔 Admin notification sent.');
+            await sendSMS(smsPhone, userMessage);
+            console.log(`SMS sent to user ${smsPhone} with ticket ${ticketId}`);
         } catch (smsError) {
-            console.error('⚠️ Failed to send SMS:', smsError.message);
+            console.error('Failed to send user SMS:', smsError.message);
+        }
+
+        try {
+            await sendSMS(ADMIN_PHONE, adminMessage);
+            console.log('Admin notification sent.');
+        } catch (smsError) {
+            console.error('Failed to send admin SMS:', smsError.message);
         }
 
         res.json({ result: 'success' });
 
     } catch (error) {
-        console.error('❌ Callback Error Detail:', error.message);
-        console.error('❌ Stack Trace:', error.stack);
+        console.error('Callback Error Detail:', error.message);
+        console.error('Stack Trace:', error.stack);
         res.status(500).json({ error: 'Internal Server Error', detail: error.message });
     }
 };
 
 /**
- * Handle Manual Transaction Verification
+ * Check Payment Status (polled by frontend)
+ */
+exports.getPaymentStatus = (req, res) => {
+    const { checkoutRequestID } = req.params;
+    const tracked = paymentTracker[checkoutRequestID];
+
+    if (!tracked) {
+        return res.json({ status: 'PENDING', message: 'Waiting for payment...' });
+    }
+
+    const response = {
+        status: tracked.status,
+        message: tracked.status === 'PAID'
+            ? 'Payment confirmed!'
+            : tracked.status === 'FAILED'
+                ? (tracked.reason || 'Payment failed or was cancelled.')
+                : 'Waiting for payment...'
+    };
+
+    if (tracked.status === 'PAID') {
+        response.ticketId = tracked.ticketId;
+        response.mpesaReceiptNumber = tracked.mpesaReceiptNumber;
+    }
+
+    res.json(response);
+};
+
+/**
+ * Handle Manual Transaction Verification (fallback)
  */
 exports.submitManualVerification = async (req, res) => {
     try {
@@ -171,12 +247,12 @@ exports.submitManualVerification = async (req, res) => {
 
         if (db) {
             await db.collection('bookings').add(bookingData);
-            console.log(`📥 Manual verification submitted: ${transactionId} by ${phoneNumber}`);
+            console.log(`Manual verification submitted: ${transactionId} by ${phoneNumber}`);
         } else {
-            console.log('⚠️ db not configured. Mock booking:', bookingData);
+            console.log('db not configured. Mock booking:', bookingData);
         }
 
-        // Send SMS confirmation to the user with their ticket number
+        // Send SMS confirmation to the user
         let formattedUserPhone = phoneNumber;
         if (formattedUserPhone.startsWith('0')) {
             formattedUserPhone = '+254' + formattedUserPhone.slice(1);
@@ -209,7 +285,7 @@ exports.submitManualVerification = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Manual Verify Error:', error);
+        console.error('Manual Verify Error:', error);
         res.status(500).json({ error: 'Failed to submit verification' });
     }
 };

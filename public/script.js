@@ -24,7 +24,6 @@ async function loadEvents() {
 
 function renderEvents(events) {
     eventsContainer.innerHTML = events.map(event => {
-        // Generate buttons for each tier
         const tierButtons = event.tiers.map(tier =>
             `<button class="btn-book" onclick="openBooking('${event.id}', '${event.name}', ${tier.price}, '${tier.name}')">
                 ${tier.name} (KES ${tier.price})
@@ -62,20 +61,20 @@ function renderEvents(events) {
 window.openBooking = (id, eventName, price, tierName) => {
     document.getElementById('event-id').value = id;
     document.getElementById('amount').value = price;
-    // We can append tier name to event name for clarity in modal/sms
     const fullEventName = `${eventName} (${tierName})`;
 
     document.getElementById('modal-event-name').textContent = fullEventName;
     document.getElementById('modal-event-price').textContent = `KES ${price}`;
-    document.getElementById('instruction-amount').textContent = `KES ${price}`;
-
-    // Add hidden input for tier if you want to track it separately, 
-    // but for now we'll just use the Price/Amount to differentiate in STK
 
     bookingForm.classList.remove('hidden');
     paymentStatus.classList.add('hidden');
+    // Reset payment status UI
+    document.querySelector('#payment-status .spinner').style.display = '';
+    document.querySelector('#payment-status p').innerText = 'Check your phone! Enter PIN to pay.';
+    document.querySelector('#payment-status .info').innerText = 'Ticket will be sent via SMS shortly.';
     payBtn.disabled = false;
     payBtn.textContent = 'Pay with M-Pesa';
+    document.getElementById('card-errors').textContent = '';
 
     modal.classList.remove('hidden');
 };
@@ -86,7 +85,6 @@ window.onclick = (e) => {
     if (e.target == modal) modal.classList.add('hidden');
 }
 
-// Handle Payment Submission
 // Stripe Init
 const stripe = Stripe('pk_test_TYooMQauvdEDq54NiTphI7jx'); // Replace with your Publishable Key
 const elements = stripe.elements();
@@ -111,6 +109,40 @@ window.toggleMethod = (method) => {
     }
 };
 
+// Poll for M-Pesa payment status
+async function pollPaymentStatus(checkoutRequestID, eventName, phone, name, eventId, amount) {
+    const maxAttempts = 30; // Poll for up to ~60 seconds
+    let attempts = 0;
+
+    const poll = setInterval(async () => {
+        attempts++;
+
+        try {
+            const res = await fetch(`${API_URL}/payment-status/${checkoutRequestID}`);
+            const data = await res.json();
+
+            if (data.status === 'PAID') {
+                clearInterval(poll);
+                document.querySelector('#payment-status .spinner').style.display = 'none';
+                document.querySelector('#payment-status p').innerText = `Payment Confirmed! Ticket No: ${data.ticketId}`;
+                document.querySelector('#payment-status .info').innerText = 'An SMS with your ticket details has been sent to your phone.';
+            } else if (data.status === 'FAILED') {
+                clearInterval(poll);
+                document.querySelector('#payment-status .spinner').style.display = 'none';
+                document.querySelector('#payment-status p').innerText = 'Payment failed or was cancelled.';
+                document.querySelector('#payment-status .info').innerText = 'Please try again or use a different payment method.';
+            } else if (attempts >= maxAttempts) {
+                clearInterval(poll);
+                document.querySelector('#payment-status .spinner').style.display = 'none';
+                document.querySelector('#payment-status p').innerText = 'Payment is taking longer than expected.';
+                document.querySelector('#payment-status .info').innerText = 'If you completed the payment, your ticket SMS will arrive shortly. Otherwise, please try again.';
+            }
+        } catch (err) {
+            console.error('Poll error:', err);
+        }
+    }, 2000);
+}
+
 // Handle Payment Submission
 bookingForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -118,50 +150,52 @@ bookingForm.addEventListener('submit', async (e) => {
     const amount = document.getElementById('amount').value;
     const eventId = document.getElementById('event-id').value;
     const name = document.getElementById('name').value;
-    // Get the full name displayed in modal (includes Tier)
     const nameWithTier = document.getElementById('modal-event-name').textContent;
 
     payBtn.disabled = true;
     payBtn.textContent = 'Processing...';
 
     if (selectedMethod === 'mpesa') {
-        // --- MANUAL POCHI VERIFICATION FLOW ---
+        // --- STK PUSH FLOW ---
         const phone = document.getElementById('phone').value;
-        const transactionId = document.getElementById('transaction-id').value;
 
         try {
-            const res = await fetch(`${API_URL}/verify-payment`, {
+            const res = await fetch(`${API_URL}/pay`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     phoneNumber: phone,
-                    transactionId,
-                    amount,
-                    eventId,
+                    amount: amount,
+                    eventId: eventId,
                     eventName: nameWithTier,
                     name: name
                 })
             });
 
             const data = await res.json();
-            if (data.status === 'confirmed' || data.status === 'pending') {
+
+            if (data.checkoutRequestID) {
+                // Show waiting status
                 bookingForm.classList.add('hidden');
                 paymentStatus.classList.remove('hidden');
-                document.querySelector('#payment-status .spinner').style.display = 'none';
-                document.querySelector('#payment-status p').innerText = `Payment Confirmed! Ticket No: ${data.ticketId}`;
-                document.querySelector('#payment-status .info').innerText = "An SMS with your ticket details has been sent to your phone.";
+                document.querySelector('#payment-status .spinner').style.display = '';
+                document.querySelector('#payment-status p').innerText = 'Check your phone! Enter your M-Pesa PIN to pay.';
+                document.querySelector('#payment-status .info').innerText = 'Waiting for payment confirmation...';
+
+                // Start polling for status
+                pollPaymentStatus(data.checkoutRequestID, nameWithTier, phone, name, eventId, amount);
             } else {
-                throw new Error(data.error || 'Verification failed');
+                throw new Error(data.error || 'Failed to initiate payment');
             }
         } catch (error) {
             alert('Error: ' + error.message);
             payBtn.disabled = false;
+            payBtn.textContent = 'Pay with M-Pesa';
         }
 
     } else {
         // --- STRIPE FLOW ---
         try {
-            // 1. Create Payment Intent
             const res = await fetch(`${API_URL}/create-payment-intent`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -170,7 +204,6 @@ bookingForm.addEventListener('submit', async (e) => {
 
             const { clientSecret } = await res.json();
 
-            // 2. Confirm Card Payment
             const result = await stripe.confirmCardPayment(clientSecret, {
                 payment_method: {
                     card: card,
@@ -179,14 +212,11 @@ bookingForm.addEventListener('submit', async (e) => {
             });
 
             if (result.error) {
-                // Show error to your customer (e.g., insufficient funds)
                 document.getElementById('card-errors').textContent = result.error.message;
                 payBtn.disabled = false;
                 payBtn.textContent = 'Pay with Card';
             } else {
-                // The payment has been processed!
                 if (result.paymentIntent.status === 'succeeded') {
-                    // 3. Notify Backend to Generate Ticket
                     const confirmRes = await fetch(`${API_URL}/stripe-success`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -194,15 +224,16 @@ bookingForm.addEventListener('submit', async (e) => {
                             paymentIntentId: result.paymentIntent.id,
                             eventName: nameWithTier,
                             amount,
-                            phoneNumber: '0000000000' // Or collect phone for Card users too
+                            phoneNumber: '0000000000'
                         })
                     });
                     const confirmData = await confirmRes.json();
 
-                    // Show success
                     bookingForm.classList.add('hidden');
                     paymentStatus.classList.remove('hidden');
+                    document.querySelector('#payment-status .spinner').style.display = 'none';
                     document.querySelector('#payment-status p').innerText = `Payment Successful! Ticket ID: ${confirmData.ticketId}`;
+                    document.querySelector('#payment-status .info').innerText = 'Your ticket has been confirmed.';
                 }
             }
         } catch (error) {

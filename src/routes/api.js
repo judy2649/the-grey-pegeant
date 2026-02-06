@@ -42,10 +42,13 @@ router.post('/pay', mpesaController.initiateSTKPush);
 // POST /api/callback
 router.post('/callback', mpesaController.handleCallback);
 
-// 4. Manual Verification
+// 4. Check Payment Status (polled by frontend after STK push)
+router.get('/payment-status/:checkoutRequestID', mpesaController.getPaymentStatus);
+
+// 5. Manual Verification (fallback)
 router.post('/verify-payment', mpesaController.submitManualVerification);
 
-// 5. Stripe Routes
+// 6. Stripe Routes
 router.post('/create-payment-intent', stripeController.createPaymentIntent);
 router.post('/stripe-success', stripeController.handlePaymentSuccess);
 

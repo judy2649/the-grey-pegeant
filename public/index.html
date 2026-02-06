@@ -71,25 +71,14 @@
                 <input type="hidden" id="amount">
 
                 <div id="mpesa-fields">
-                    <div class="pochi-instructions"
+                    <div class="mpesa-info"
                         style="background: #fdf2f8; border: 1px dashed var(--primary); padding: 12px; border-radius: 8px; margin-bottom: 15px; font-size: 0.85rem; color: var(--text-main);">
-                        <p style="margin: 0 0 5px 0;"><strong>How to Pay:</strong></p>
-                        <ol style="margin: 0; padding-left: 20px;">
-                            <li>Go to M-Pesa > Send Money</li>
-                            <li>Enter Phone Number: <strong>0712369221</strong></li>
-                            <li>Enter Amount: <strong id="instruction-amount">KES 0</strong></li>
-                            <li>Complete the transaction</li>
-                            <li>Paste the <strong>M-Pesa Transaction Code</strong> below</li>
-                        </ol>
+                        <p style="margin: 0 0 5px 0;"><strong>Pay via M-Pesa:</strong></p>
+                        <p style="margin: 0; color: var(--text-light);">Enter your M-Pesa phone number below. You will receive a payment prompt on your phone. Enter your M-Pesa PIN to complete the payment.</p>
                     </div>
                     <div class="form-group">
-                        <label for="phone">Your M-Pesa Phone Number</label>
+                        <label for="phone">M-Pesa Phone Number</label>
                         <input type="tel" id="phone" name="phone" placeholder="0712345678" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="transaction-id">M-Pesa Transaction Code</label>
-                        <input type="text" id="transaction-id" name="transaction-id" placeholder="e.g. RJ52ABC123"
-                            required>
                     </div>
                 </div>
 
