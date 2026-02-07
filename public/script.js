@@ -1,22 +1,15 @@
 const API_URL = '/api';
 
-// Stripe configuration - will be initialized when needed
-let stripe = null;
-let elements = null;
-let paymentElement = null;
-
 // State for current booking
 let currentBooking = {
     eventId: null,
     eventName: null,
     tierName: null,
     priceKES: 0,
-    priceUSD: 0,
-    clientSecret: null,
-    paymentIntentId: null
+    priceUSD: 0
 };
 
-// Conversion rate
+// Conversion rate (1 USD = X KES) - simplified
 let conversionRate = 155;
 
 // DOM Elements
@@ -29,35 +22,28 @@ const paymentSuccess = document.getElementById('payment-success');
 // Load Events on Start
 document.addEventListener('DOMContentLoaded', async () => {
     loadEvents();
-    await loadConversionRate();
 });
-
-async function loadConversionRate() {
-    try {
-        const res = await fetch(`${API_URL}/conversion-rate`);
-        const data = await res.json();
-        conversionRate = data.kesToUsdRate || 155;
-        console.log(`💱 Conversion rate loaded: 1 USD = ${conversionRate} KES`);
-    } catch (error) {
-        console.error('Failed to load conversion rate, using default:', error);
-    }
-}
 
 async function loadEvents() {
     try {
         const res = await fetch(`${API_URL}/events`);
+        if (!res.ok) throw new Error('Failed to fetch events');
         const events = await res.json();
         renderEvents(events);
     } catch (error) {
-        eventsContainer.innerHTML = '<p class="error">Failed to load events.</p>';
-        console.error(error);
+        if (eventsContainer) {
+            eventsContainer.innerHTML = '<p class="error" style="color: white; text-align: center;">Unable to load events at the moment.</p>';
+        }
+        console.error('loadEvents error:', error);
     }
 }
 
 function renderEvents(events) {
+    if (!eventsContainer) return;
+
     eventsContainer.innerHTML = events.map(event => {
         const tierButtons = event.tiers.map(tier =>
-            `<button class="btn-book" onclick="openBooking('${event.id}', '${event.name}', ${tier.price}, '${tier.name}')">
+            `<button class="btn-book" onclick="openBooking('${event.id}', '${event.name.replace(/'/g, "\\'")}', ${tier.price}, '${tier.name.replace(/'/g, "\\'")}')">
                 ${tier.name} (KES ${tier.price})
             </button>`
         ).join('');
@@ -94,8 +80,9 @@ function kesToUsd(kes) {
 
 // Open booking modal
 window.openBooking = (eventId, eventName, priceKES, tierName) => {
+    console.log('Opening booking for:', eventName, tierName);
+
     const priceUSD = kesToUsd(priceKES);
-    const fullEventName = `${eventName} (${tierName})`;
 
     // Update current booking state
     currentBooking = {
@@ -103,53 +90,70 @@ window.openBooking = (eventId, eventName, priceKES, tierName) => {
         eventName,
         tierName,
         priceKES,
-        priceUSD,
-        clientSecret: null,
-        paymentIntentId: null
+        priceUSD
     };
 
     // Update modal display
-    document.getElementById('modal-event-name').textContent = eventName;
-    document.getElementById('modal-event-price').textContent = `KES ${priceKES}`;
-    document.getElementById('summary-event-name').textContent = fullEventName;
-    document.getElementById('summary-price-kes').textContent = `KES ${priceKES}`;
-    document.getElementById('summary-price-usd').textContent = `$${priceUSD}`;
-    document.getElementById('conversion-note').textContent = `Rate: 1 USD = ${conversionRate} KES`;
+    try {
+        if (document.getElementById('modal-event-name')) document.getElementById('modal-event-name').textContent = eventName;
+        if (document.getElementById('modal-event-price')) document.getElementById('modal-event-price').textContent = `KES ${priceKES}`;
+        if (document.getElementById('summary-event-name')) document.getElementById('summary-event-name').textContent = `${eventName} (${tierName})`;
+        if (document.getElementById('summary-price-kes')) document.getElementById('summary-price-kes').textContent = `KES ${priceKES}`;
+        if (document.getElementById('summary-price-usd')) document.getElementById('summary-price-usd').textContent = `$${priceUSD}`;
+        if (document.getElementById('conversion-note')) document.getElementById('conversion-note').textContent = `Rate: 1 USD = ${conversionRate} KES`;
+    } catch (e) {
+        console.warn('Modal update partial fail:', e);
+    }
 
-    // Reset UI state
     resetModalState();
-    modal.classList.remove('hidden');
+
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex'; // Ensure it shows
+    }
 
     // Setup proceed button handler
     const proceedBtn = document.getElementById('proceed-payment-btn');
-    proceedBtn.onclick = handleProceedToPayment;
+    if (proceedBtn) {
+        proceedBtn.onclick = handleProceedToReview;
+    }
 };
 
 function resetModalState() {
-    // Show customer info, hide payment section
-    document.getElementById('customer-info-section').classList.remove('hidden');
-    document.getElementById('proceed-payment-btn').classList.remove('hidden');
+    const idsToHide = ['manual-payment-container', 'payment-status', 'payment-success'];
+    const idsToShow = ['customer-info-section', 'proceed-payment-btn'];
 
-    // Hide Status/Success/Manual sections
-    document.getElementById('payment-status').classList.add('hidden');
-    document.getElementById('payment-success').classList.add('hidden');
-    document.getElementById('manual-payment-container').classList.add('hidden');
+    idsToHide.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.classList.add('hidden');
+            el.style.display = 'none';
+        }
+    });
 
-    // Reset button states
+    idsToShow.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.classList.remove('hidden');
+            el.style.display = 'block';
+        }
+    });
+
+    // Reset button text
     const proceedBtn = document.getElementById('proceed-payment-btn');
     if (proceedBtn) {
         proceedBtn.disabled = false;
         proceedBtn.textContent = 'Review & Pay with M-Pesa';
     }
 
-    // Clear form
-    document.getElementById('name').value = '';
-    document.getElementById('email').value = '';
-    document.getElementById('phone').value = '';
-    document.getElementById('mpesa-code').value = ''; // Clear code input too
+    // Clear inputs safely
+    ['name', 'email', 'phone', 'mpesa-code'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
 }
 
-async function handleProceedToPayment() {
+async function handleProceedToReview() {
     const name = document.getElementById('name').value.trim();
     const email = document.getElementById('email').value.trim();
     const phone = document.getElementById('phone').value.trim();
@@ -165,24 +169,32 @@ async function handleProceedToPayment() {
     }
 
     // Switch to Manual Pay View
-    document.getElementById('customer-info-section').classList.add('hidden');
-    document.getElementById('proceed-payment-btn').classList.add('hidden');
+    if (document.getElementById('customer-info-section')) document.getElementById('customer-info-section').classList.add('hidden');
+    if (document.getElementById('customer-info-section')) document.getElementById('customer-info-section').style.display = 'none';
+
+    if (document.getElementById('proceed-payment-btn')) document.getElementById('proceed-payment-btn').classList.add('hidden');
+    if (document.getElementById('proceed-payment-btn')) document.getElementById('proceed-payment-btn').style.display = 'none';
 
     // Show Manual Payment Section
     const manualContainer = document.getElementById('manual-payment-container');
-    manualContainer.classList.remove('hidden');
-    manualContainer.style.display = 'block';
+    if (manualContainer) {
+        manualContainer.classList.remove('hidden');
+        manualContainer.style.display = 'block';
+    }
 
     // Update Price display in instructions
-    document.getElementById('manual-price').textContent = currentBooking.priceKES;
+    if (document.getElementById('manual-price')) document.getElementById('manual-price').textContent = currentBooking.priceKES;
 
     // Set up Confirm Button
     const confirmBtn = document.getElementById('confirm-manual-btn');
-    confirmBtn.onclick = () => submitManualPayment(name, email, phone);
+    if (confirmBtn) {
+        confirmBtn.onclick = () => submitManualPayment(name, email, phone);
+    }
 }
 
 async function submitManualPayment(name, email, phone) {
-    const mpesaCode = document.getElementById('mpesa-code').value.trim();
+    const mpesaCodeInput = document.getElementById('mpesa-code');
+    const mpesaCode = mpesaCodeInput ? mpesaCodeInput.value.trim() : '';
 
     if (!mpesaCode || mpesaCode.length < 10) {
         alert('Please enter a valid 10-character M-Pesa Code (e.g. SDE23...)');
@@ -190,14 +202,16 @@ async function submitManualPayment(name, email, phone) {
     }
 
     const confirmBtn = document.getElementById('confirm-manual-btn');
-    confirmBtn.disabled = true;
-    confirmBtn.textContent = '⏳ Verifying...';
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = '⏳ Verifying...';
+    }
 
-    // Show status/progress if you have a status element
-    const paymentStatus = document.getElementById('payment-status');
     if (paymentStatus) {
         paymentStatus.classList.remove('hidden');
-        paymentStatus.querySelector('p').textContent = 'Recording Payment...';
+        paymentStatus.style.display = 'block';
+        const p = paymentStatus.querySelector('p');
+        if (p) p.textContent = 'Recording Payment...';
     }
 
     try {
@@ -219,28 +233,45 @@ async function submitManualPayment(name, email, phone) {
 
         if (result.success) {
             // Success!
-            document.getElementById('manual-payment-container').classList.add('hidden'); // Hide form
-            document.getElementById('manual-payment-container').style.display = 'none';
-            if (paymentStatus) paymentStatus.classList.add('hidden');
+            const manualContainer = document.getElementById('manual-payment-container');
+            if (manualContainer) {
+                manualContainer.classList.add('hidden');
+                manualContainer.style.display = 'none';
+            }
 
-            const successDiv = document.getElementById('payment-success');
-            successDiv.classList.remove('hidden');
-            successDiv.querySelector('h3').textContent = 'Payment Recorded!';
-            document.getElementById('ticket-id-display').textContent = `🎫 Ticket ID: ${result.ticketId}`;
+            if (paymentStatus) {
+                paymentStatus.classList.add('hidden');
+                paymentStatus.style.display = 'none';
+            }
 
-            // Show message about SMS & WhatsApp
-            const msg = document.createElement('p');
-            msg.className = 'success-message';
-            msg.innerHTML = `
-                ✅ Ticket sent to <strong>${phone}</strong> via SMS.<br><br>
-                <div style="margin-top:15px">
-                    Did not receive it? 
-                    <a href="https://wa.me/254794173314?text=Hi,%20I%20paid%20for%20a%20ticket%20but%20did%20not%20receive%20the%20SMS.%20Ticket%20ID:%20${result.ticketId}" 
-                       target="_blank" style="color: #25D366; font-weight: bold; text-decoration: none;">
-                       WhatsApp Us
-                    </a>
-                </div>`;
-            successDiv.appendChild(msg);
+            if (paymentSuccess) {
+                paymentSuccess.classList.remove('hidden');
+                paymentSuccess.style.display = 'block';
+                const h3 = paymentSuccess.querySelector('h3');
+                if (h3) h3.textContent = 'Payment Recorded!';
+                const ticketIdDisp = document.getElementById('ticket-id-display');
+                if (ticketIdDisp) ticketIdDisp.textContent = `🎫 Ticket ID: ${result.ticketId}`;
+
+                // Remove any existing success message
+                const oldMsg = paymentSuccess.querySelector('.success-message');
+                if (oldMsg) oldMsg.remove();
+
+                // Show message about SMS & WhatsApp
+                const msg = document.createElement('p');
+                msg.className = 'success-message';
+                msg.style.color = '#065f46';
+                msg.style.marginTop = '15px';
+                msg.innerHTML = `
+                    ✅ Your payment was recorded. A confirmation SMS with your ticket has been sent to <strong>${phone}</strong>.<br><br>
+                    <div style="margin-top:10px; font-weight: normal;">
+                        Did not receive it? 
+                        <a href="https://wa.me/254794173314?text=Hi,%20I%20paid%20for%20a%20ticket%20but%20did%20not%20receive%20the%20SMS.%20Ticket%20ID:%20${result.ticketId}" 
+                           target="_blank" style="color: #25D366; font-weight: bold; text-decoration: underline;">
+                           WhatsApp Support
+                        </a>
+                    </div>`;
+                paymentSuccess.appendChild(msg);
+            }
 
         } else {
             throw new Error(result.message || 'Validation failed');
@@ -249,19 +280,34 @@ async function submitManualPayment(name, email, phone) {
     } catch (error) {
         console.error('Payment Error:', error);
         alert('Error: ' + error.message);
-        confirmBtn.disabled = false;
-        confirmBtn.textContent = '✅ Confirm Payment';
-        if (paymentStatus) paymentStatus.classList.add('hidden');
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = '✅ Confirm Payment';
+        }
+        if (paymentStatus) {
+            paymentStatus.classList.add('hidden');
+            paymentStatus.style.display = 'none';
+        }
     }
 }
-
 
 function validateEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-// Close Modal
-closeBtn.onclick = () => modal.classList.add('hidden');
+// Global Close Modal Logic
+if (closeBtn) {
+    closeBtn.onclick = () => {
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
+    };
+}
+
 window.onclick = (e) => {
-    if (e.target == modal) modal.classList.add('hidden');
+    if (modal && e.target == modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
 }
