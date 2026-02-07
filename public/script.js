@@ -58,6 +58,11 @@ function renderEvents(events) {
     `}).join('');
 }
 
+// Mobile Detection Helper
+function isMobile() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
 // Global scope for onclick
 window.openBooking = (id, eventName, price, tierName) => {
     const fullEventName = `${eventName} (${tierName})`;
@@ -81,17 +86,28 @@ window.openBooking = (id, eventName, price, tierName) => {
 
         // Show redirecting status
         confirmBtn.disabled = true;
-        confirmBtn.textContent = 'Redirecting...';
+        confirmBtn.textContent = 'Redirecting to M-Pesa...';
         paymentStatus.classList.remove('hidden');
 
-        // Construct the redirect URL (Add name/email as parameters if supported by the gateway)
-        // Most hosted links allow passing details as query params
-        const finalLink = `${PAYMENT_LINK}?amount=${price}&email=${encodeURIComponent(email)}&first_name=${encodeURIComponent(name)}`;
+        // Optimizing for M-Pesa STK Push flow
+        // We add 'mpesa' as the default method in the query string if the gateway supports it
+        let finalLink = `${PAYMENT_LINK}?amount=${price}&email=${encodeURIComponent(email)}&first_name=${encodeURIComponent(name)}`;
 
-        // Wait a small delay for better UX
-        setTimeout(() => {
-            window.location.href = finalLink;
-        }, 1200);
+        // Add hint for M-Pesa for a more "Direct" feel
+        finalLink += "&method=mpesa";
+
+        if (isMobile()) {
+            console.log("Mobile device detected. Optimizing M-Pesa flow...");
+            // On mobile, we can also try to use the "window.location.replace" for a smoother transition
+            setTimeout(() => {
+                window.location.href = finalLink;
+            }, 800);
+        } else {
+            // Desktop experience
+            setTimeout(() => {
+                window.location.href = finalLink;
+            }, 1200);
+        }
     };
 };
 
