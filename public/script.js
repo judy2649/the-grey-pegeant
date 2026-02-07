@@ -219,7 +219,7 @@ async function initializeStripeElements(clientSecret) {
     // Using test key - replace with your actual publishable key
     if (!stripe) {
         // This should be your actual publishable key from Stripe dashboard
-        stripe = Stripe('pk_test_YOUR_STRIPE_PUBLISHABLE_KEY');
+        stripe = Stripe('pk_test_51Sxw4eLRhlfVEwJw6BLjczqycD8bSHc02HUwleEQnAEkBOrdC6VawKzfyIeOGrBxvhoG0ogHBGtitRFoGpECeUbN00vkv12p8l');
     }
 
     const appearance = {
