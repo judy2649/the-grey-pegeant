@@ -130,7 +130,7 @@ exports.handlePaymentSuccess = async (req, res) => {
 
         const adminMessage = `🔔 New Booking!\nEvent: ${eventName}\nTier: ${tierName}\nTicket: ${ticketId}\nKES ${amountKES} (USD ${amountUSD})\nName: ${name || 'N/A'}\nPhone: ${phoneNumber || 'N/A'}\nEmail: ${email || 'N/A'}`;
 
-        const ADMIN_PHONE = '+254712369221';
+        const ADMIN_PHONE = process.env.ADMIN_PHONE || '+254712369221';
 
         try {
             if (phoneNumber) await sendSMS(phoneNumber, userMessage);
