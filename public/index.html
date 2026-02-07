@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Great+Vibes&display=swap"
         rel="stylesheet">
+    <script src="https://unpkg.com/intasend-inlinejs-sdk@3.0.4/build/intasend-inline.js"></script>
 </head>
 
 <body>
@@ -85,6 +86,12 @@
             <div class="form-group">
                 <label for="name">Your Full Name</label>
                 <input type="text" id="name" name="name" placeholder="John Doe" required
+                    style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 5px;">
+            </div>
+
+            <div class="form-group">
+                <label for="phone">M-Pesa Phone Number (for STK Push)</label>
+                <input type="tel" id="phone" name="phone" placeholder="0712345678" required
                     style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 5px;">
             </div>
 

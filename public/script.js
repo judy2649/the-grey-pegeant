@@ -1,9 +1,18 @@
 const API_URL = '/api';
 
 // --- CONFIGURATION ---
-// Replace this with your actual IntaSend or Pesapal Payment Link
-const PAYMENT_LINK = "https://intasend.com/pay/the-grey-pegeant";
+// IMPORTANT: Replace this with your actual IntaSend Publishable Key
+// You can find it in your IntaSend Dashboard -> Settings -> API Keys
+const INTASEND_PUBLISHABLE_KEY = "IS_REPLACE_WITH_YOUR_KEY";
 // ---------------------
+
+let intasend_instance;
+if (window.IntaSend) {
+    intasend_instance = new window.IntaSend({
+        publicAPIKey: INTASEND_PUBLISHABLE_KEY,
+        live: false // Set to true for production
+    });
+}
 
 // DOM Elements
 const eventsContainer = document.getElementById('events-container');
@@ -58,11 +67,6 @@ function renderEvents(events) {
     `}).join('');
 }
 
-// Mobile Detection Helper
-function isMobile() {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-}
-
 // Global scope for onclick
 window.openBooking = (id, eventName, price, tierName) => {
     const fullEventName = `${eventName} (${tierName})`;
@@ -78,36 +82,50 @@ window.openBooking = (id, eventName, price, tierName) => {
     confirmBtn.onclick = () => {
         const name = document.getElementById('name').value;
         const email = document.getElementById('email').value;
+        const phone = document.getElementById('phone').value;
 
-        if (!name || !email) {
-            alert("Please provide your name and email to receive your ticket.");
+        if (!name || !email || !phone) {
+            alert("Please provide your name, phone, and email to receive your ticket.");
             return;
         }
 
-        // Show redirecting status
-        confirmBtn.disabled = true;
-        confirmBtn.textContent = 'Redirecting to M-Pesa...';
-        paymentStatus.classList.remove('hidden');
-
-        // Optimizing for M-Pesa STK Push flow
-        // We add 'mpesa' as the default method in the query string if the gateway supports it
-        let finalLink = `${PAYMENT_LINK}?amount=${price}&email=${encodeURIComponent(email)}&first_name=${encodeURIComponent(name)}`;
-
-        // Add hint for M-Pesa for a more "Direct" feel
-        finalLink += "&method=mpesa";
-
-        if (isMobile()) {
-            console.log("Mobile device detected. Optimizing M-Pesa flow...");
-            // On mobile, we can also try to use the "window.location.replace" for a smoother transition
-            setTimeout(() => {
-                window.location.href = finalLink;
-            }, 800);
-        } else {
-            // Desktop experience
-            setTimeout(() => {
-                window.location.href = finalLink;
-            }, 1200);
+        if (!intasend_instance) {
+            alert("Payment gateway not initialized. Check your Publishable Key.");
+            return;
         }
+
+        // Show status on button
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Triggering STK Push...';
+
+        // Direct STK Push via Inline SDK (No Redirect)
+        intasend_instance.run({
+            amount: price,
+            currency: "KES",
+            comment: `Ticket for ${fullEventName}`,
+            customer: {
+                first_name: name,
+                email: email,
+                phone_number: phone
+            },
+            method: "M-PESA" // This forces M-PESA STK flow
+        })
+            .on("COMPLETE", (results) => {
+                confirmBtn.textContent = 'Payment Complete!';
+                paymentStatus.classList.remove('hidden');
+                document.querySelector('#payment-status p').innerText = "Payment Successful! Your ticket is being generated.";
+                console.log("Payment complete:", results);
+            })
+            .on("FAILED", (results) => {
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = '🚀 Confirm & Pay Now';
+                alert("Payment failed. Please try again.");
+                console.error("Payment failed:", results);
+            })
+            .on("IN-PROGRESS", (results) => {
+                confirmBtn.textContent = 'Checking STK Status...';
+                console.log("Payment in progress...");
+            });
     };
 };
 
