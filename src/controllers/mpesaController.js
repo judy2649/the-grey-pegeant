@@ -46,11 +46,13 @@ exports.initiateSTKPush = async (req, res) => {
             "TransactionDesc": "The Grey Pageant Ticket Purchase"
         };
 
+        console.log(`📡 Sending STK Push request to Safaricom for ${formattedPhone}...`);
         const response = await axios.post(url, data, {
-            headers: { Authorization: `Bearer ${accessToken}` }
+            headers: { Authorization: `Bearer ${accessToken}` },
+            timeout: 15000 // 15 second timeout
         });
 
-        console.log(`🚀 STK Push initiated for ${formattedPhone}. checkoutRequestID: ${response.data.CheckoutRequestID}`);
+        console.log(`🚀 STK Push Response from Safaricom:`, JSON.stringify(response.data));
 
         res.json({
             message: 'STK Push initiated successfully',

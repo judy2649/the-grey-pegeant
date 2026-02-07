@@ -43,13 +43,16 @@ const getAccessToken = async () => {
     const auth = 'Basic ' + Buffer.from(consumerKey + ':' + consumerSecret).toString('base64');
 
     try {
+        console.log('🔑 Fetching Safaricom Access Token...');
         const response = await axios.get(url, {
-            headers: { Authorization: auth }
+            headers: { Authorization: auth },
+            timeout: 10000 // 10 second timeout
         });
+        console.log('✅ Access Token obtained.');
         return response.data.access_token;
     } catch (error) {
-        console.error('❌ M-Pesa Access Token Error:', error.response ? error.response.data : error.message);
-        throw error;
+        console.error('❌ M-Pesa Access Token Error:', error.response ? JSON.stringify(error.response.data) : error.message);
+        throw new Error('Failed to connect to Safaricom. Check your API Keys.');
     }
 };
 
