@@ -1,91 +1,60 @@
 const axios = require('axios');
 require('dotenv').config();
 
-const PORT = process.env.PORT || 3002;
-const BASE_URL = process.env.PRODUCTION_URL
-    ? `${process.env.PRODUCTION_URL}/api`
-    : `http://localhost:${PORT}/api`;
+const PORT = 3002; // Change this to your running server port if needed
+const BASE_URL = `http://localhost:${PORT}/api`;
 
 async function runTests() {
-    console.log('🚀 --- Starting Stripe Payment Test Suite ---');
-    console.log(`📡 Target BASE_URL: ${BASE_URL}`);
+    console.log('🚀 --- Starting Manual M-Pesa Integration Test ---');
+    console.log(`📡 Connecting to: ${BASE_URL}`);
 
-    // Diagnostics - Check Environment Variables
-    console.log('\n🔍 Checking Environment Variables:');
-    console.log(`   STRIPE_SECRET_KEY: ${process.env.STRIPE_SECRET_KEY ? '✅ FOUND' : '❌ MISSING'}`);
-    console.log(`   STRIPE_PUBLISHABLE_KEY: ${process.env.STRIPE_PUBLISHABLE_KEY ? '✅ FOUND' : '❌ MISSING'}`);
-    console.log(`   KES_TO_USD_RATE: ${process.env.KES_TO_USD_RATE || '155 (default)'}`);
-    console.log(`   ADMIN_PHONE: ${process.env.ADMIN_PHONE || '❌ MISSING'}`);
-    console.log(`   AT_API_KEY: ${process.env.AT_API_KEY && process.env.AT_API_KEY !== 'YOUR_AFRICAS_TALKING_API_KEY' ? '✅ FOUND' : '⚠️ Not configured (SMS won\'t work)'}`);
-
-    // Test 1: Get Conversion Rate
-    await testConversionRate();
-
-    // Test 2: Get Events
+    // Test 1: Health Check (Get Events)
     await testGetEvents();
 
-    // Test 3: Create Payment Intent
-    await testCreatePaymentIntent();
+    // Test 2: Submit Manual Payment
+    await testManualPayment();
 
     console.log('\n✅ --- All Tests Completed ---');
 }
 
-async function testConversionRate() {
-    console.log('\n🔹 TEST 1: Get Conversion Rate');
-
-    try {
-        const response = await axios.get(`${BASE_URL}/conversion-rate`);
-        console.log('✅ Conversion Rate Response:', response.data);
-        console.log(`   1 USD = ${response.data.kesToUsdRate} KES`);
-    } catch (error) {
-        handleError(error, 'Conversion Rate');
-    }
-}
-
 async function testGetEvents() {
-    console.log('\n🔹 TEST 2: Get Events');
-
+    console.log('\n🔹 TEST 1: Check Website Health (Get Events)');
     try {
         const response = await axios.get(`${BASE_URL}/events`);
-        console.log('✅ Events Response:');
-        response.data.forEach(event => {
-            console.log(`   📅 ${event.name} - ${event.date} @ ${event.venue}`);
-            event.tiers.forEach(tier => {
-                console.log(`      💰 ${tier.name}: KES ${tier.price}`);
-            });
-        });
+        console.log('✅ Success! Website is loading properly.');
+        console.log(`   Found ${response.data.length} event(s).`);
     } catch (error) {
         handleError(error, 'Get Events');
     }
 }
 
-async function testCreatePaymentIntent() {
-    console.log('\n🔹 TEST 3: Create Payment Intent (Stripe)');
+async function testManualPayment() {
+    console.log('\n🔹 TEST 2: Submit Manual Payment');
 
+    // Simulate user entering a payment code
     const payload = {
-        amountKES: 200,  // KES 200 for Normal ticket
-        eventName: 'The Grey Pageant',
-        eventId: 'evt_grey_pageant',
-        tierName: 'Normal',
-        name: 'Test User',
+        mpesaCode: 'SDE23KL90M', // 10-char code
+        phoneNumber: '0712369221',
+        name: 'Test Automatic User',
         email: 'test@example.com',
-        phoneNumber: '0712369221'
+        eventName: 'The Grey Pageant - Test Run',
+        amount: 200,
+        tierName: 'Normal'
     };
 
-    console.log('📤 Sending payment request:', payload);
+    console.log(`📤 Sending Code: ${payload.mpesaCode} for ${payload.eventName}`);
 
     try {
-        const response = await axios.post(`${BASE_URL}/create-payment-intent`, payload);
-        console.log('✅ Payment Intent Created Successfully!');
-        console.log('   Payment Intent ID:', response.data.paymentIntentId);
-        console.log(`   Amount: KES ${response.data.amountKES} → USD ${response.data.amountUSD}`);
-        console.log(`   Conversion Rate: 1 USD = ${response.data.conversionRate} KES`);
-        console.log('   Client Secret:', response.data.clientSecret ? '✅ Received' : '❌ Missing');
+        const response = await axios.post(`${BASE_URL}/manual-pay`, payload);
+        console.log('✅ Payment Submission Successful!');
+        console.log('   Ticket Generated:', response.data.ticketId);
+        console.log('   Message:', response.data.message);
 
-        return response.data;
+        if (response.data.success) {
+            console.log('📧 Notification Triggered (check backend logs for SMS output)');
+        }
     } catch (error) {
-        handleError(error, 'Create Payment Intent');
-        return null;
+        handleError(error, 'Manual Payment');
     }
 }
 
@@ -93,12 +62,11 @@ function handleError(error, context) {
     console.error(`\n❌ Error during ${context}:`);
     if (error.response) {
         console.error('   Status:', error.response.status);
-        console.error('   Data:', JSON.stringify(error.response.data, null, 2));
+        console.error('   Error:', error.response.data);
     } else if (error.request) {
-        console.error('   ⚠️ No response received from server.');
-        console.error('   Make sure the server is running: npm start');
+        console.error('   ⚠️ Server not reachable. Is it running? (node start_alternate.js)');
     } else {
-        console.error('   Error Message:', error.message);
+        console.error('   Message:', error.message);
     }
 }
 
