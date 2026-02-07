@@ -107,8 +107,10 @@ window.openBooking = (id, eventName, price, tierName) => {
             confirmBtn.disabled = false;
             confirmBtn.textContent = '🚀 Confirm & Pay Now';
             paymentStatus.classList.add('hidden');
-            alert("Error: " + error.message);
-            console.error("Payment error:", error);
+
+            // Show detailed error for debugging
+            alert("Error: " + error.message + "\n\nTip: If you are using the Daraja Sandbox, make sure your phone number is registered on the Safaricom Developer Portal!");
+            console.error("Payment error details:", error);
         }
     };
 };

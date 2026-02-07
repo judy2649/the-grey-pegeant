@@ -59,8 +59,12 @@ exports.initiateSTKPush = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ STK Push Error:', error.response ? error.response.data : error.message);
-        res.status(500).json({ error: 'Failed to initiate M-Pesa payment' });
+        const errorDetail = error.response ? JSON.stringify(error.response.data) : error.message;
+        console.error('❌ STK Push Error:', errorDetail);
+        res.status(500).json({
+            error: 'Failed to initiate M-Pesa payment',
+            detail: errorDetail
+        });
     }
 };
 
