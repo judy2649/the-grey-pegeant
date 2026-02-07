@@ -17,6 +17,12 @@ const sms = africastalking.SMS;
  * @param {string} message - The message content
  */
 const sendSMS = async (to, message) => {
+    // Check if credentials are placeholders
+    if (!process.env.AT_API_KEY || process.env.AT_API_KEY === 'YOUR_AFRICAS_TALKING_API_KEY') {
+        console.warn('⚠️ SMS skipped: Africa\'s Talking API Key not configured.');
+        return { status: 'skipped' };
+    }
+
     try {
         const result = await sms.send({
             to: [to],
