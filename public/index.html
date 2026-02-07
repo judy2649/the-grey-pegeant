@@ -82,28 +82,45 @@
                 </div>
             </div>
 
+            <div id="manual-payment-instructions"
+                style="background: #fffbeb; border: 1px solid #fef3c7; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                <p style="margin: 0 0 10px 0; font-weight: 700; color: #92400e;">👇 How to Pay:</p>
+                <ol style="margin: 0; padding-left: 20px; color: #92400e; font-size: 0.9rem;">
+                    <li>Go to M-Pesa > Lipa na M-Pesa</li>
+                    <li>Select <strong>Buy Goods and Services</strong></li>
+                    <li>Enter Till: <strong style="font-size: 1.1rem;">9821671</strong></li>
+                    <li>Pay <strong>KES <span class="summary-price">0</span></strong></li>
+                </ol>
+            </div>
+
             <div class="form-group">
-                <label for="name">Your Full Name</label>
+                <label for="name">Your Name</label>
                 <input type="text" id="name" name="name" placeholder="John Doe" required
                     style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 5px;">
             </div>
 
             <div class="form-group">
-                <label for="phone">M-Pesa Phone Number (for STK Push)</label>
+                <label for="phone">Your M-Pesa Number</label>
                 <input type="tel" id="phone" name="phone" placeholder="0712345678" required
                     style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 5px;">
             </div>
 
-            <div class="form-group" style="margin-bottom: 25px;">
-                <label for="email">Email Address (for ticket delivery)</label>
+            <div class="form-group">
+                <label for="email">Email Address</label>
                 <input type="email" id="email" name="email" placeholder="john@example.com" required
                     style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 5px;">
             </div>
 
+            <div class="form-group" style="margin-bottom: 25px;">
+                <label for="transaction-id">M-Pesa Transaction Code (e.g. RKL123...)</label>
+                <input type="text" id="transaction-id" name="transaction-id" placeholder="Enter code here" required
+                    style="width: 100%; padding: 12px; border: 2px solid #22c55e; border-radius: 8px; margin-top: 5px; font-weight: bold; text-transform: uppercase;">
+            </div>
+
             <div style="text-align: center;">
                 <button type="button" class="btn-primary" id="confirm-pay-btn"
-                    style="width: 100%; padding: 15px; font-size: 1rem; background: #22c55e; border: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">🚀
-                    Confirm & Pay Now</button>
+                    style="width: 100%; padding: 15px; font-size: 1rem; background: #22c55e; border: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">✅
+                    Submit for Verification</button>
                 <p
                     style="font-size: 0.8rem; color: #64748b; margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 5px;">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -112,13 +129,13 @@
                         <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
                         <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                     </svg>
-                    Direct Secure Payment (M-Pesa & Cards)
+                    Direct Payment to Till 9821671
                 </p>
             </div>
 
             <div id="payment-status" class="hidden" style="text-align: center; margin-top: 20px;">
                 <div class="spinner"></div>
-                <p>Sending M-Pesa STK Push... Please check your phone.</p>
+                <p>Verifying your transaction... Please wait.</p>
             </div>
         </div>
     </div>

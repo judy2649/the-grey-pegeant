@@ -28,9 +28,12 @@ exports.initiateSTKPush = async (req, res) => {
         const timestamp = getTimestamp();
         const password = getStkPassword();
 
-        const transactionType = process.env.MPESA_TRANSACTION_TYPE || 'CustomerBuyGoodsOnline'; // Switched to Buy Goods for Till
-        const businessShortCode = process.env.MPESA_SHORTCODE || "99202854"; // Store Number as fallback
-        const partyB = process.env.MPESA_TILL_NUMBER || "9821671"; // Till Number as fallback
+        const isSandbox = process.env.MPESA_ENV !== 'production';
+
+        // If Sandbox, we MUST use the Sandbox Shortcode/Paybill for the keys to work
+        const transactionType = isSandbox ? 'CustomerPayBillOnline' : (process.env.MPESA_TRANSACTION_TYPE || 'CustomerBuyGoodsOnline');
+        const businessShortCode = isSandbox ? "174379" : (process.env.MPESA_SHORTCODE || "99202854");
+        const partyB = isSandbox ? "174379" : (process.env.MPESA_TILL_NUMBER || "9821671");
 
         const data = {
             "BusinessShortCode": businessShortCode,
@@ -42,8 +45,8 @@ exports.initiateSTKPush = async (req, res) => {
             "PartyB": partyB,
             "PhoneNumber": formattedPhone,
             "CallBackURL": `${process.env.BASE_URL}/api/callback`,
-            "AccountReference": partyB,
-            "TransactionDesc": "The Grey Pageant Ticket Purchase"
+            "AccountReference": isSandbox ? "TestApp" : partyB,
+            "TransactionDesc": "Ticket Purchase"
         };
 
         console.log(`📡 Sending STK Push request to Safaricom for ${formattedPhone}...`);
