@@ -1,19 +1,5 @@
 const API_URL = '/api';
 
-// --- CONFIGURATION ---
-// IMPORTANT: Replace this with your actual IntaSend Publishable Key
-// You can find it in your IntaSend Dashboard -> Settings -> API Keys
-const INTASEND_PUBLISHABLE_KEY = "IS_REPLACE_WITH_YOUR_KEY";
-// ---------------------
-
-let intasend_instance;
-if (window.IntaSend) {
-    intasend_instance = new window.IntaSend({
-        publicAPIKey: INTASEND_PUBLISHABLE_KEY,
-        live: false // Set to true for production
-    });
-}
-
 // DOM Elements
 const eventsContainer = document.getElementById('events-container');
 const modal = document.getElementById('booking-modal');
@@ -79,7 +65,7 @@ window.openBooking = (id, eventName, price, tierName) => {
 
     // Handle Confirm & Pay Button
     const confirmBtn = document.getElementById('confirm-pay-btn');
-    confirmBtn.onclick = () => {
+    confirmBtn.onclick = async () => {
         const name = document.getElementById('name').value;
         const email = document.getElementById('email').value;
         const phone = document.getElementById('phone').value;
@@ -89,43 +75,41 @@ window.openBooking = (id, eventName, price, tierName) => {
             return;
         }
 
-        if (!intasend_instance) {
-            alert("Payment gateway not initialized. Check your Publishable Key.");
-            return;
-        }
-
-        // Show status on button
+        // Show loading status
         confirmBtn.disabled = true;
-        confirmBtn.textContent = 'Triggering STK Push...';
+        confirmBtn.textContent = 'Processing...';
+        paymentStatus.classList.remove('hidden');
 
-        // Direct STK Push via Inline SDK (No Redirect)
-        intasend_instance.run({
-            amount: price,
-            currency: "KES",
-            comment: `Ticket for ${fullEventName}`,
-            customer: {
-                first_name: name,
-                email: email,
-                phone_number: phone
-            },
-            method: "M-PESA" // This forces M-PESA STK flow
-        })
-            .on("COMPLETE", (results) => {
-                confirmBtn.textContent = 'Payment Complete!';
-                paymentStatus.classList.remove('hidden');
-                document.querySelector('#payment-status p').innerText = "Payment Successful! Your ticket is being generated.";
-                console.log("Payment complete:", results);
-            })
-            .on("FAILED", (results) => {
-                confirmBtn.disabled = false;
-                confirmBtn.textContent = '🚀 Confirm & Pay Now';
-                alert("Payment failed. Please try again.");
-                console.error("Payment failed:", results);
-            })
-            .on("IN-PROGRESS", (results) => {
-                confirmBtn.textContent = 'Checking STK Status...';
-                console.log("Payment in progress...");
+        try {
+            // Initiate Direct STK Push via Backend API
+            const response = await fetch(`${API_URL}/pay`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    phoneNumber: phone,
+                    amount: price,
+                    eventId: id,
+                    name: name,
+                    email: email
+                })
             });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                confirmBtn.textContent = 'Check your phone!';
+                document.querySelector('#payment-status p').innerText = "STK Push sent! Enter your M-Pesa PIN on your phone to complete payment.";
+                console.log("STK Push initiated:", result);
+            } else {
+                throw new Error(result.error || "Failed to initiate payment");
+            }
+        } catch (error) {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = '🚀 Confirm & Pay Now';
+            paymentStatus.classList.add('hidden');
+            alert("Error: " + error.message);
+            console.error("Payment error:", error);
+        }
     };
 };
 

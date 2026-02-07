@@ -28,11 +28,9 @@ exports.initiateSTKPush = async (req, res) => {
         const timestamp = getTimestamp();
         const password = getStkPassword();
 
-        const transactionType = process.env.MPESA_TRANSACTION_TYPE || 'CustomerPayBillOnline';
-        const businessShortCode = process.env.MPESA_SHORTCODE;
-        const partyB = transactionType === 'CustomerBuyGoodsOnline'
-            ? (process.env.MPESA_TILL_NUMBER || businessShortCode)
-            : businessShortCode;
+        const transactionType = process.env.MPESA_TRANSACTION_TYPE || 'CustomerBuyGoodsOnline'; // Switched to Buy Goods for Till
+        const businessShortCode = process.env.MPESA_SHORTCODE || "99202854"; // Store Number as fallback
+        const partyB = process.env.MPESA_TILL_NUMBER || "9821671"; // Till Number as fallback
 
         const data = {
             "BusinessShortCode": businessShortCode,
