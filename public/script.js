@@ -1,4 +1,11 @@
 const API_URL = '/api';
+let intasend_instance;
+if (window.IntaSend) {
+    intasend_instance = new window.IntaSend({
+        publicAPIKey: "REPLACE_WITH_YOUR_INTASEND_PUBLISHABLE_KEY",
+        live: false // Set to true for production
+    });
+}
 
 // DOM Elements
 const eventsContainer = document.getElementById('events-container');
@@ -75,10 +82,62 @@ window.openBooking = (id, eventName, price, tierName) => {
     bookingForm.classList.remove('hidden');
     paymentStatus.classList.add('hidden');
     payBtn.disabled = false;
-    payBtn.textContent = 'Pay with M-Pesa';
+    payBtn.textContent = 'Verify Manual Payment';
 
     modal.classList.remove('hidden');
+
+    // Initialize Direct Pay Button
+    const directPayBtn = document.getElementById('direct-pay-btn');
+    if (directPayBtn) {
+        directPayBtn.onclick = () => {
+            if (!intasend_instance) {
+                alert("Payment gateway not initialized.");
+                return;
+            }
+            intasend_instance.run({
+                amount: price,
+                currency: "KES",
+                comment: `Ticket for ${fullEventName}`,
+                customer: {
+                    phone_number: document.getElementById('phone').value || "N/A"
+                }
+            })
+            .on("COMPLETE", (results) => handleIntaSendSuccess(results, fullEventName, price))
+            .on("FAILED", (results) => alert("Payment failed. Please try again or use manual flow."))
+            .on("IN-PROGRESS", (results) => console.log("Payment in progress..."));
+        };
+    }
 };
+
+window.copyNumber = () => {
+    const num = document.getElementById('copy-number').innerText;
+    navigator.clipboard.writeText(num).then(() => {
+        alert("Number copied: " + num);
+    });
+};
+
+async function handleIntaSendSuccess(results, eventName, amount) {
+    const phone = document.getElementById('phone').value || "N/A";
+    try {
+        const res = await fetch(`${API_URL}/intasend/checkout`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                tracking_id: results.tracking_id,
+                eventName,
+                amount,
+                phoneNumber: phone
+            })
+        });
+        const data = await res.json();
+        bookingForm.classList.add('hidden');
+        paymentStatus.classList.remove('hidden');
+        document.querySelector('#payment-status p').innerText = `Payment Successful! Ticket ID: ${data.ticketId}`;
+    } catch (error) {
+        console.error(error);
+        alert("Payment was successful but we couldn't generate your ticket automatically. Please contact support with Ref: " + results.tracking_id);
+    }
+}
 
 // Close Modal
 closeBtn.onclick = () => modal.classList.add('hidden');

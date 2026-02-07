@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Great+Vibes&display=swap"
         rel="stylesheet">
     <script src="https://js.stripe.com/v3/"></script>
+    <script src="https://unpkg.com/intasend-inlinejs-sdk@3.0.4/build/intasend-inline.js"></script>
 </head>
 
 <body>
@@ -77,10 +78,26 @@
                         <ol style="margin: 0; padding-left: 20px;">
                             <li>Go to M-Pesa > Lipa na M-Pesa</li>
                             <li>Select <strong>Send Money</strong></li>
-                            <li>Enter Phone: <strong>0712369221</strong></li>
+                            <li style="display: flex; align-items: center; gap: 8px;">
+                                Enter Phone: <strong id="copy-number">0712369221</strong>
+                                <button type="button" onclick="copyNumber()"
+                                    style="padding: 2px 8px; font-size: 0.7rem; cursor: pointer; border: 1px solid #ccc; border-radius: 4px; background: #fff;">Copy</button>
+                            </li>
                             <li>Enter Amount: <strong id="instruction-amount">KES 0</strong></li>
                             <li>Paste the <strong>Transaction Code</strong> below</li>
                         </ol>
+                        <div style="margin-top: 15px; text-align: center;">
+                            <p style="margin-bottom: 8px; font-size: 0.8rem;"><strong>Or Scan to Pay:</strong></p>
+                            <img id="mpesa-qr"
+                                src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=tel:0712369221"
+                                alt="M-Pesa QR Code"
+                                style="width: 120px; height: 120px; border: 4px solid #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 20px; text-align: center;">
+                        <button type="button" class="btn-primary" id="direct-pay-btn"
+                            style="background: #22c55e; border: none; width: 100%;">🚀 Pay Directly (Automated)</button>
+                        <p style="font-size: 0.75rem; color: #666; margin-top: 5px;">STK Push & Cards supported</p>
                     </div>
                     <div class="form-group">
                         <label for="phone">Your M-Pesa Phone Number</label>
