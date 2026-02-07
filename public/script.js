@@ -128,22 +128,25 @@ window.openBooking = (eventId, eventName, priceKES, tierName) => {
 function resetModalState() {
     // Show customer info, hide payment section
     document.getElementById('customer-info-section').classList.remove('hidden');
-    document.getElementById('stripe-payment-section').classList.add('hidden');
     document.getElementById('proceed-payment-btn').classList.remove('hidden');
-    document.getElementById('pay-btn').classList.add('hidden');
+
+    // Hide Status/Success/Manual sections
     document.getElementById('payment-status').classList.add('hidden');
     document.getElementById('payment-success').classList.add('hidden');
-    document.getElementById('payment-message').classList.add('hidden');
+    document.getElementById('manual-payment-container').classList.add('hidden');
 
     // Reset button states
     const proceedBtn = document.getElementById('proceed-payment-btn');
-    proceedBtn.disabled = false;
-    proceedBtn.textContent = '💳 Proceed to Payment';
+    if (proceedBtn) {
+        proceedBtn.disabled = false;
+        proceedBtn.textContent = 'Review & Pay with M-Pesa';
+    }
 
     // Clear form
     document.getElementById('name').value = '';
     document.getElementById('email').value = '';
     document.getElementById('phone').value = '';
+    document.getElementById('mpesa-code').value = ''; // Clear code input too
 }
 
 async function handleProceedToPayment() {
