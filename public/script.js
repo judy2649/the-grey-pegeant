@@ -58,7 +58,8 @@ window.openBooking = (id, eventName, price, tierName) => {
     const fullEventName = `${eventName} (${tierName})`;
 
     document.getElementById('summary-event-name').textContent = fullEventName;
-    document.getElementById('summary-event-price').textContent = `KES ${price}`;
+    // Update price in instructions
+    document.querySelectorAll('.summary-price').forEach(el => el.textContent = price);
 
     paymentStatus.classList.add('hidden');
     modal.classList.remove('hidden');
@@ -69,26 +70,29 @@ window.openBooking = (id, eventName, price, tierName) => {
         const name = document.getElementById('name').value;
         const email = document.getElementById('email').value;
         const phone = document.getElementById('phone').value;
+        const transactionId = document.getElementById('transaction-id').value;
 
-        if (!name || !email || !phone) {
-            alert("Please provide your name, phone, and email to receive your ticket.");
+        if (!name || !email || !phone || !transactionId) {
+            alert("Please fill in all fields and provide your M-Pesa transaction code.");
             return;
         }
 
         // Show loading status
         confirmBtn.disabled = true;
-        confirmBtn.textContent = 'Processing...';
+        confirmBtn.textContent = 'Submitting...';
         paymentStatus.classList.remove('hidden');
 
         try {
-            // Initiate Direct STK Push via Backend API
-            const response = await fetch(`${API_URL}/pay`, {
+            // Call Manual Verification API
+            const response = await fetch(`${API_URL}/verify-payment`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     phoneNumber: phone,
+                    transactionId: transactionId,
                     amount: price,
                     eventId: id,
+                    eventName: eventName,
                     name: name,
                     email: email
                 })
@@ -97,20 +101,18 @@ window.openBooking = (id, eventName, price, tierName) => {
             const result = await response.json();
 
             if (response.ok) {
-                confirmBtn.textContent = 'Check your phone!';
-                document.querySelector('#payment-status p').innerText = "STK Push sent! Enter your M-Pesa PIN on your phone to complete payment.";
-                console.log("STK Push initiated:", result);
+                confirmBtn.textContent = 'Submitted!';
+                document.querySelector('#payment-status p').innerText = "✅ Submitted! We will verify your payment and send the ticket to your email shortly.";
+                console.log("Verification submitted:", result);
             } else {
-                throw new Error(result.error || "Failed to initiate payment");
+                throw new Error(result.error || "Failed to submit verification");
             }
         } catch (error) {
             confirmBtn.disabled = false;
-            confirmBtn.textContent = '🚀 Confirm & Pay Now';
+            confirmBtn.textContent = '✅ Submit for Verification';
             paymentStatus.classList.add('hidden');
-
-            // Show detailed error for debugging
-            alert("Error: " + error.message + "\n\nTip: If you are using the Daraja Sandbox, make sure your phone number is registered on the Safaricom Developer Portal!");
-            console.error("Payment error details:", error);
+            alert("Error: " + error.message);
+            console.error("Verification error:", error);
         }
     };
 };
