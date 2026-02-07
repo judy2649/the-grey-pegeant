@@ -51,5 +51,8 @@ router.post('/stripe-success', stripeController.handlePaymentSuccess);
 router.get('/conversion-rate', stripeController.getConversionRate);
 
 
-// 6. Final module export
+// 7. Manual M-Pesa Payment
+const manualPaymentController = require('../controllers/manualPaymentController');
+router.post('/manual-pay', manualPaymentController.processManualPayment);
+
 module.exports = router;

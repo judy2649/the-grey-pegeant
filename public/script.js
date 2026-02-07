@@ -161,157 +161,97 @@ async function handleProceedToPayment() {
         return;
     }
 
-    const proceedBtn = document.getElementById('proceed-payment-btn');
-    proceedBtn.disabled = true;
-    proceedBtn.textContent = 'Creating payment...';
+    // Switch to Manual Pay View
+    document.getElementById('customer-info-section').classList.add('hidden');
+    document.getElementById('proceed-payment-btn').classList.add('hidden');
+
+    // Show Manual Payment Section
+    const manualContainer = document.getElementById('manual-payment-container');
+    manualContainer.classList.remove('hidden');
+    manualContainer.style.display = 'block';
+
+    // Update Price display in instructions
+    document.getElementById('manual-price').textContent = currentBooking.priceKES;
+
+    // Set up Confirm Button
+    const confirmBtn = document.getElementById('confirm-manual-btn');
+    confirmBtn.onclick = () => submitManualPayment(name, email, phone);
+}
+
+async function submitManualPayment(name, email, phone) {
+    const mpesaCode = document.getElementById('mpesa-code').value.trim();
+
+    if (!mpesaCode || mpesaCode.length < 10) {
+        alert('Please enter a valid 10-character M-Pesa Code (e.g. SDE23...)');
+        return;
+    }
+
+    const confirmBtn = document.getElementById('confirm-manual-btn');
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = '⏳ Verifying...';
+
+    // Show status/progress if you have a status element
+    const paymentStatus = document.getElementById('payment-status');
+    if (paymentStatus) {
+        paymentStatus.classList.remove('hidden');
+        paymentStatus.querySelector('p').textContent = 'Recording Payment...';
+    }
 
     try {
-        // Create payment intent
-        const response = await fetch(`${API_URL}/create-payment-intent`, {
+        const response = await fetch(`${API_URL}/manual-pay`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                amountKES: currentBooking.priceKES,
+                mpesaCode: mpesaCode,
+                phoneNumber: phone,
+                name: name,
+                email: email,
                 eventName: currentBooking.eventName,
-                eventId: currentBooking.eventId,
-                tierName: currentBooking.tierName,
-                name,
-                email,
-                phoneNumber: phone
+                amount: currentBooking.priceKES,
+                tierName: currentBooking.tierName
             })
         });
 
-        const data = await response.json();
+        const result = await response.json();
 
-        if (!response.ok) {
-            throw new Error(data.error || 'Failed to create payment');
+        if (result.success) {
+            // Success!
+            document.getElementById('manual-payment-container').classList.add('hidden'); // Hide form
+            document.getElementById('manual-payment-container').style.display = 'none';
+            if (paymentStatus) paymentStatus.classList.add('hidden');
+
+            const successDiv = document.getElementById('payment-success');
+            successDiv.classList.remove('hidden');
+            successDiv.querySelector('h3').textContent = 'Payment Recorded!';
+            document.getElementById('ticket-id-display').textContent = `🎫 Ticket ID: ${result.ticketId}`;
+
+            // Show message about SMS & WhatsApp
+            const msg = document.createElement('p');
+            msg.className = 'success-message';
+            msg.innerHTML = `
+                ✅ Ticket sent to <strong>${phone}</strong> via SMS.<br><br>
+                <div style="margin-top:15px">
+                    Did not receive it? 
+                    <a href="https://wa.me/254794173314?text=Hi,%20I%20paid%20for%20a%20ticket%20but%20did%20not%20receive%20the%20SMS.%20Ticket%20ID:%20${result.ticketId}" 
+                       target="_blank" style="color: #25D366; font-weight: bold; text-decoration: none;">
+                       WhatsApp Us
+                    </a>
+                </div>`;
+            successDiv.appendChild(msg);
+
+        } else {
+            throw new Error(result.message || 'Validation failed');
         }
 
-        currentBooking.clientSecret = data.clientSecret;
-        currentBooking.paymentIntentId = data.paymentIntentId;
-        currentBooking.priceUSD = data.amountUSD;
-
-        console.log('✅ Payment Intent created:', data.paymentIntentId);
-
-        // Initialize Stripe Elements
-        await initializeStripeElements(data.clientSecret);
-
-        // Hide customer info, show payment section
-        document.getElementById('customer-info-section').classList.add('hidden');
-        document.getElementById('stripe-payment-section').classList.remove('hidden');
-        proceedBtn.classList.add('hidden');
-        document.getElementById('pay-btn').classList.remove('hidden');
-
-        // Setup pay button
-        const payBtn = document.getElementById('pay-btn');
-        payBtn.onclick = handlePayment;
-
     } catch (error) {
-        console.error('Payment setup error:', error);
+        console.error('Payment Error:', error);
         alert('Error: ' + error.message);
-        proceedBtn.disabled = false;
-        proceedBtn.textContent = '💳 Proceed to Payment';
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = '✅ Confirm Payment';
+        if (paymentStatus) paymentStatus.classList.add('hidden');
     }
 }
 
-async function initializeStripeElements(clientSecret) {
-    // Initialize Stripe with your publishable key
-    // Using test key - replace with your actual publishable key
-    if (!stripe) {
-        // This should be your actual publishable key from Stripe dashboard
-        stripe = Stripe('pk_test_51Sxw4eLRhlfVEwJw6BLjczqycD8bSHc02HUwleEQnAEkBOrdC6VawKzfyIeOGrBxvhoG0ogHBGtitRFoGpECeUbN00vkv12p8l');
-    }
-
-    const appearance = {
-        theme: 'stripe',
-        variables: {
-            colorPrimary: '#6366f1',
-            colorBackground: '#ffffff',
-            colorText: '#1e293b',
-            colorDanger: '#ef4444',
-            fontFamily: 'Inter, system-ui, sans-serif',
-            borderRadius: '8px',
-        }
-    };
-
-    elements = stripe.elements({ appearance, clientSecret });
-
-    paymentElement = elements.create('payment', {
-        layout: 'tabs'
-    });
-
-    paymentElement.mount('#payment-element');
-}
-
-async function handlePayment() {
-    const payBtn = document.getElementById('pay-btn');
-    const messageDiv = document.getElementById('payment-message');
-
-    payBtn.disabled = true;
-    payBtn.textContent = 'Processing...';
-    document.getElementById('payment-status').classList.remove('hidden');
-    messageDiv.classList.add('hidden');
-
-    const name = document.getElementById('name').value.trim();
-    const email = document.getElementById('email').value.trim();
-    const phone = document.getElementById('phone').value.trim();
-
-    try {
-        const { error, paymentIntent } = await stripe.confirmPayment({
-            elements,
-            confirmParams: {
-                return_url: window.location.href,
-                receipt_email: email,
-            },
-            redirect: 'if_required'
-        });
-
-        if (error) {
-            throw new Error(error.message);
-        }
-
-        if (paymentIntent && paymentIntent.status === 'succeeded') {
-            // Payment successful - notify server
-            const successResponse = await fetch(`${API_URL}/stripe-success`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    paymentIntentId: paymentIntent.id,
-                    eventName: currentBooking.eventName,
-                    eventId: currentBooking.eventId,
-                    tierName: currentBooking.tierName,
-                    phoneNumber: phone,
-                    amountKES: currentBooking.priceKES,
-                    amountUSD: currentBooking.priceUSD,
-                    name,
-                    email
-                })
-            });
-
-            const result = await successResponse.json();
-
-            // Show success message
-            document.getElementById('payment-status').classList.add('hidden');
-            document.getElementById('payment-success').classList.remove('hidden');
-            document.getElementById('stripe-payment-section').classList.add('hidden');
-            payBtn.classList.add('hidden');
-
-            if (result.ticketId) {
-                document.getElementById('ticket-id-display').textContent = `🎫 Ticket ID: ${result.ticketId}`;
-            }
-
-            console.log('🎉 Payment completed successfully!');
-        }
-
-    } catch (error) {
-        console.error('Payment error:', error);
-        messageDiv.textContent = error.message;
-        messageDiv.classList.remove('hidden');
-        payBtn.disabled = false;
-        payBtn.textContent = '💳 Pay Now';
-        document.getElementById('payment-status').classList.add('hidden');
-    }
-}
 
 function validateEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);

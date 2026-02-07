@@ -1,7 +1,7 @@
 const axios = require('axios');
 require('dotenv').config();
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3002;
 const BASE_URL = process.env.PRODUCTION_URL
     ? `${process.env.PRODUCTION_URL}/api`
     : `http://localhost:${PORT}/api`;
