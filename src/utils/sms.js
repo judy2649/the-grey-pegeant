@@ -1,38 +1,54 @@
-const AfricasTalking = require('africastalking');
+const axios = require('axios');
 const dotenv = require('dotenv');
 
 dotenv.config();
 
-// Initialize Africa's Talking
-const africastalking = AfricasTalking({
-    apiKey: process.env.AT_API_KEY || 'sandbox',
-    username: process.env.AT_USERNAME || 'sandbox'
-});
-
-const sms = africastalking.SMS;
-
 /**
- * Sends an SMS to a specific phone number.
- * @param {string} to - The phone number (e.g., +254712345678)
+ * Sends an SMS to a specific phone number using OpenSMS (opensms.co.ke).
+ * @param {string} to - The phone number (e.g., 254712345678)
  * @param {string} message - The message content
  */
 const sendSMS = async (to, message) => {
-    // Check if credentials are placeholders
-    if (!process.env.AT_API_KEY || process.env.AT_API_KEY === 'YOUR_AFRICAS_TALKING_API_KEY') {
-        console.warn('⚠️ SMS skipped: Africa\'s Talking API Key not configured.');
+    const apiToken = process.env.OPEN_SMS_API_TOKEN;
+    const senderId = process.env.OPEN_SMS_SENDER_ID || 'OpenSMS';
+
+    if (!apiToken || apiToken.includes('YOUR_')) {
+        console.warn('⚠️ SMS skipped: OpenSMS API Token not configured.');
         return { status: 'skipped' };
     }
 
+    // Ensure phone number format is correct (Remove + if present, many Kenyan gateways prefer 254...)
+    let formattedPhone = to.replace('+', '');
+    if (formattedPhone.startsWith('0')) {
+        formattedPhone = '254' + formattedPhone.substring(1);
+    }
+
     try {
-        const result = await sms.send({
-            to: [to],
+        const response = await axios.post('https://api.opensms.co.ke/v3/sms/send', {
+            recipient: formattedPhone,
+            sender_id: senderId,
+            type: 'plain',
             message: message
+        }, {
+            headers: {
+                'Authorization': `Bearer ${apiToken}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
         });
-        console.log('📨 SMS Sent successfully:', result);
-        return result;
+
+        console.log('📨 OpenSMS Sent successfully:', response.data);
+        return {
+            status: 'success',
+            data: response.data
+        };
     } catch (error) {
-        console.error('❌ Error sending SMS:', error);
-        throw error;
+        console.error('❌ Error sending OpenSMS:', error.response ? error.response.data : error.message);
+        // Don't throw to prevent crashing the order flow, just log it
+        return {
+            status: 'failed',
+            error: error.response ? error.response.data : error.message
+        };
     }
 };
 
