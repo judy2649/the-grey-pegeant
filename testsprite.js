@@ -7,93 +7,98 @@ const BASE_URL = process.env.PRODUCTION_URL
     : `http://localhost:${PORT}/api`;
 
 async function runTests() {
-    console.log('🚀 --- Starting M-Pesa Test Suite ---');
+    console.log('🚀 --- Starting Stripe Payment Test Suite ---');
     console.log(`📡 Target BASE_URL: ${BASE_URL}`);
 
-    // Diagnostics
-    console.log('🔍 Checking Environment Variables:');
-    console.log(`   MPESA_SHORTCODE: ${process.env.MPESA_SHORTCODE || 'MISSING'}`);
-    console.log(`   MPESA_TILL_NUMBER: ${process.env.MPESA_TILL_NUMBER || 'MISSING'}`);
-    console.log(`   MPESA_CONSUMER_KEY: ${process.env.MPESA_CONSUMER_KEY ? 'FOUND' : 'MISSING'}`);
+    // Diagnostics - Check Environment Variables
+    console.log('\n🔍 Checking Environment Variables:');
+    console.log(`   STRIPE_SECRET_KEY: ${process.env.STRIPE_SECRET_KEY ? '✅ FOUND' : '❌ MISSING'}`);
+    console.log(`   STRIPE_PUBLISHABLE_KEY: ${process.env.STRIPE_PUBLISHABLE_KEY ? '✅ FOUND' : '❌ MISSING'}`);
+    console.log(`   KES_TO_USD_RATE: ${process.env.KES_TO_USD_RATE || '155 (default)'}`);
+    console.log(`   ADMIN_PHONE: ${process.env.ADMIN_PHONE || '❌ MISSING'}`);
+    console.log(`   AT_API_KEY: ${process.env.AT_API_KEY && process.env.AT_API_KEY !== 'YOUR_AFRICAS_TALKING_API_KEY' ? '✅ FOUND' : '⚠️ Not configured (SMS won\'t work)'}`);
 
-    const checkoutRequestID = await testSTKPush();
+    // Test 1: Get Conversion Rate
+    await testConversionRate();
 
-    if (checkoutRequestID && !process.env.PRODUCTION_URL) {
-        console.log('\n--- Local environment detected. Testing Callback... ---');
-        await testCallback(checkoutRequestID);
-    }
+    // Test 2: Get Events
+    await testGetEvents();
 
-    console.log('\n✅ --- Tests Completed ---');
+    // Test 3: Create Payment Intent
+    await testCreatePaymentIntent();
+
+    console.log('\n✅ --- All Tests Completed ---');
 }
 
-async function testSTKPush() {
-    console.log('\n🔹 STEP 1: Initiating STK Push...');
+async function testConversionRate() {
+    console.log('\n🔹 TEST 1: Get Conversion Rate');
+
+    try {
+        const response = await axios.get(`${BASE_URL}/conversion-rate`);
+        console.log('✅ Conversion Rate Response:', response.data);
+        console.log(`   1 USD = ${response.data.kesToUsdRate} KES`);
+    } catch (error) {
+        handleError(error, 'Conversion Rate');
+    }
+}
+
+async function testGetEvents() {
+    console.log('\n🔹 TEST 2: Get Events');
+
+    try {
+        const response = await axios.get(`${BASE_URL}/events`);
+        console.log('✅ Events Response:');
+        response.data.forEach(event => {
+            console.log(`   📅 ${event.name} - ${event.date} @ ${event.venue}`);
+            event.tiers.forEach(tier => {
+                console.log(`      💰 ${tier.name}: KES ${tier.price}`);
+            });
+        });
+    } catch (error) {
+        handleError(error, 'Get Events');
+    }
+}
+
+async function testCreatePaymentIntent() {
+    console.log('\n🔹 TEST 3: Create Payment Intent (Stripe)');
 
     const payload = {
-        phoneNumber: '0712369221',
-        amount: 1,
-        eventId: 'evt_grey_pageant'
+        amountKES: 200,  // KES 200 for Normal ticket
+        eventName: 'The Grey Pageant',
+        eventId: 'evt_grey_pageant',
+        tierName: 'Normal',
+        name: 'Test User',
+        email: 'test@example.com',
+        phoneNumber: '0712369221'
     };
 
-    try {
-        const response = await axios.post(`${BASE_URL}/pay`, payload);
-        console.log('✅ STK Push Response:', response.data);
-
-        if (response.data.checkoutRequestID) {
-            console.log('✨ STK Push successfully initiated!');
-            return response.data.checkoutRequestID;
-        }
-        return null;
-    } catch (error) {
-        handleError(error, 'STK Push');
-        return null;
-    }
-}
-
-async function testCallback(checkoutRequestID) {
-    console.log('\n🔹 STEP 2: Simulating M-Pesa Callback...');
-
-    const callbackPayload = {
-        Body: {
-            stkCallback: {
-                MerchantRequestID: "29115-34620561-1",
-                CheckoutRequestID: checkoutRequestID,
-                ResultCode: 0,
-                ResultDesc: "The service was accepted successfully",
-                CallbackMetadata: {
-                    Item: [
-                        { Name: "Amount", Value: 1.00 },
-                        { Name: "MpesaReceiptNumber", Value: "NLJ7RT6P9Z" },
-                        { Name: "Balance", Value: 0 },
-                        { Name: "TransactionDate", Value: 20260205173411 },
-                        { Name: "PhoneNumber", Value: 254794173314 }
-                    ]
-                }
-            }
-        }
-    };
+    console.log('📤 Sending payment request:', payload);
 
     try {
-        const response = await axios.post(`${BASE_URL}/callback`, callbackPayload, {
-            headers: {
-                'x-callback-secret': process.env.MPESA_CALLBACK_SECRET || 'ef88e74c25e2b5e5e6061d8d6485e3ea170e0426ff2266fc090e306e82f14'
-            }
-        });
-        console.log('✅ Callback Response:', response.status, response.data);
+        const response = await axios.post(`${BASE_URL}/create-payment-intent`, payload);
+        console.log('✅ Payment Intent Created Successfully!');
+        console.log('   Payment Intent ID:', response.data.paymentIntentId);
+        console.log(`   Amount: KES ${response.data.amountKES} → USD ${response.data.amountUSD}`);
+        console.log(`   Conversion Rate: 1 USD = ${response.data.conversionRate} KES`);
+        console.log('   Client Secret:', response.data.clientSecret ? '✅ Received' : '❌ Missing');
+
+        return response.data;
     } catch (error) {
-        handleError(error, 'Callback Simulation');
+        handleError(error, 'Create Payment Intent');
+        return null;
     }
 }
 
 function handleError(error, context) {
     console.error(`\n❌ Error during ${context}:`);
     if (error.response) {
-        console.error('Status:', error.response.status);
-        console.error('Data:', JSON.stringify(error.response.data, null, 2));
+        console.error('   Status:', error.response.status);
+        console.error('   Data:', JSON.stringify(error.response.data, null, 2));
     } else if (error.request) {
-        console.error('No response received from server. Is it running?');
+        console.error('   ⚠️ No response received from server.');
+        console.error('   Make sure the server is running: npm start');
     } else {
-        console.error('Error Message:', error.message);
+        console.error('   Error Message:', error.message);
     }
 }
 
