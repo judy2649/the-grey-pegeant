@@ -8,8 +8,6 @@
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Great+Vibes&display=swap"
         rel="stylesheet">
-    <script src="https://js.stripe.com/v3/"></script>
-    <script src="https://unpkg.com/intasend-inlinejs-sdk@3.0.4/build/intasend-inline.js"></script>
 </head>
 
 <body>
@@ -61,76 +59,60 @@
                 <span id="modal-event-price" class="price-badge">KES 0</span>
             </div>
 
-            <!-- Payment Method Toggle -->
-            <div class="payment-methods">
-                <button class="method-btn active" id="method-mpesa" onclick="toggleMethod('mpesa')">📲 M-Pesa</button>
-                <button class="method-btn" id="method-card" onclick="toggleMethod('card')">💳 Card</button>
+            <div id="booking-details" style="margin-bottom: 25px;">
+                <div class="booking-summary"
+                    style="background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                    <p
+                        style="margin: 0 0 10px 0; font-weight: 600; color: #64748b; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em;">
+                        Booking Summary</p>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span>Event:</span>
+                        <strong id="summary-event-name" style="color: var(--text-main);">Event Name</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span>Qty:</span>
+                        <strong>1 Ticket</strong>
+                    </div>
+                    <div
+                        style="display: flex; justify-content: space-between; padding-top: 10px; border-top: 1px solid #e2e8f0; margin-top: 5px;">
+                        <span style="font-weight: 600;">Total Amount:</span>
+                        <strong id="summary-event-price" style="color: var(--primary); font-size: 1.1rem;">KES
+                            0</strong>
+                    </div>
+                </div>
             </div>
 
-            <form id="booking-form">
-                <input type="hidden" id="event-id">
-                <input type="hidden" id="amount">
+            <div class="form-group">
+                <label for="name">Your Full Name</label>
+                <input type="text" id="name" name="name" placeholder="John Doe" required
+                    style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 5px;">
+            </div>
 
-                <div id="mpesa-fields">
-                    <div class="pochi-instructions"
-                        style="background: #fdf2f8; border: 1px dashed var(--primary); padding: 12px; border-radius: 8px; margin-bottom: 15px; font-size: 0.85rem; color: var(--text-main);">
-                        <p style="margin: 0 0 5px 0;"><strong>How to Pay:</strong></p>
-                        <ol style="margin: 0; padding-left: 20px;">
-                            <li>Go to M-Pesa > Lipa na M-Pesa</li>
-                            <li>Select <strong>Send Money</strong></li>
-                            <li style="display: flex; align-items: center; gap: 8px;">
-                                Enter Phone: <strong id="copy-number">0712369221</strong>
-                                <button type="button" onclick="copyNumber()"
-                                    style="padding: 2px 8px; font-size: 0.7rem; cursor: pointer; border: 1px solid #ccc; border-radius: 4px; background: #fff;">Copy</button>
-                            </li>
-                            <li>Enter Amount: <strong id="instruction-amount">KES 0</strong></li>
-                            <li>Paste the <strong>Transaction Code</strong> below</li>
-                        </ol>
-                        <div style="margin-top: 15px; text-align: center;">
-                            <p style="margin-bottom: 8px; font-size: 0.8rem;"><strong>Or Scan to Pay:</strong></p>
-                            <img id="mpesa-qr"
-                                src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=tel:0712369221"
-                                alt="M-Pesa QR Code"
-                                style="width: 120px; height: 120px; border: 4px solid #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        </div>
-                    </div>
-                    <div style="margin-bottom: 20px; text-align: center;">
-                        <button type="button" class="btn-primary" id="direct-pay-btn"
-                            style="background: #22c55e; border: none; width: 100%;">🚀 Pay Directly (Automated)</button>
-                        <p style="font-size: 0.75rem; color: #666; margin-top: 5px;">STK Push & Cards supported</p>
-                    </div>
-                    <div class="form-group">
-                        <label for="phone">Your M-Pesa Phone Number</label>
-                        <input type="tel" id="phone" name="phone" placeholder="0712345678" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="transaction-id">M-Pesa Transaction Code</label>
-                        <input type="text" id="transaction-id" name="transaction-id" placeholder="e.g. RJ52ABC123"
-                            required>
-                    </div>
-                </div>
+            <div class="form-group" style="margin-bottom: 25px;">
+                <label for="email">Email Address (for ticket delivery)</label>
+                <input type="email" id="email" name="email" placeholder="john@example.com" required
+                    style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 5px;">
+            </div>
 
-                <div id="stripe-fields" class="hidden">
-                    <div class="form-group">
-                        <label>Card Details</label>
-                        <div id="card-element"><!--Stripe.js injects here--></div>
-                    </div>
-                </div>
+            <div style="text-align: center;">
+                <button type="button" class="btn-primary" id="confirm-pay-btn"
+                    style="width: 100%; padding: 15px; font-size: 1rem; background: #22c55e; border: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">🚀
+                    Confirm & Pay Now</button>
+                <p
+                    style="font-size: 0.8rem; color: #64748b; margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        style="color: #22c55e;">
+                        <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                    Direct Secure Payment (M-Pesa & Cards)
+                </p>
+            </div>
 
-                <div class="form-group">
-                    <label for="name">Your Name</label>
-                    <input type="text" id="name" name="name" placeholder="John Doe" required>
-                </div>
-
-                <div id="card-errors" role="alert" style="color: red; margin-bottom: 10px;"></div>
-
-                <button type="submit" class="btn-primary" id="pay-btn">Pay with M-Pesa</button>
-            </form>
-
-            <div id="payment-status" class="hidden">
+            <div id="payment-status" class="hidden" style="text-align: center; margin-top: 20px;">
                 <div class="spinner"></div>
-                <p>Check your phone! Enter PIN to pay.</p>
-                <p class="info">Ticket will be sent via SMS shortly.</p>
+                <p>Redirecting to secure payment page...</p>
             </div>
         </div>
     </div>

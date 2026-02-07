@@ -4,7 +4,7 @@ const router = express.Router();
 // Placeholder controllers (will be implemented next)
 const mpesaController = require('../controllers/mpesaController');
 const stripeController = require('../controllers/stripeController');
-const intasendController = require('../controllers/intasendController');
+const stripeController = require('../controllers/stripeController');
 
 const eventController = {
     getEvents: (req, res) => {
@@ -50,8 +50,5 @@ router.post('/verify-payment', mpesaController.submitManualVerification);
 router.post('/create-payment-intent', stripeController.createPaymentIntent);
 router.post('/stripe-success', stripeController.handlePaymentSuccess);
 
-// 6. IntaSend Routes
-router.post('/intasend/checkout', intasendController.verifyIntaSendPayment);
-router.post('/intasend/webhook', intasendController.handleWebhook);
-
+// 6. Final module export
 module.exports = router;
