@@ -10,6 +10,12 @@ async function runTests() {
     console.log('🚀 --- Starting M-Pesa Test Suite ---');
     console.log(`📡 Target BASE_URL: ${BASE_URL}`);
 
+    // Diagnostics
+    console.log('🔍 Checking Environment Variables:');
+    console.log(`   MPESA_SHORTCODE: ${process.env.MPESA_SHORTCODE || 'MISSING'}`);
+    console.log(`   MPESA_TILL_NUMBER: ${process.env.MPESA_TILL_NUMBER || 'MISSING'}`);
+    console.log(`   MPESA_CONSUMER_KEY: ${process.env.MPESA_CONSUMER_KEY ? 'FOUND' : 'MISSING'}`);
+
     const checkoutRequestID = await testSTKPush();
 
     if (checkoutRequestID && !process.env.PRODUCTION_URL) {
@@ -24,7 +30,7 @@ async function testSTKPush() {
     console.log('\n🔹 STEP 1: Initiating STK Push...');
 
     const payload = {
-        phoneNumber: '0794173314',
+        phoneNumber: '0712369221',
         amount: 1,
         eventId: 'evt_grey_pageant'
     };
