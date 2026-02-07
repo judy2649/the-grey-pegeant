@@ -247,30 +247,22 @@ async function submitManualPayment(name, email, phone) {
             if (paymentSuccess) {
                 paymentSuccess.classList.remove('hidden');
                 paymentSuccess.style.display = 'block';
-                const h3 = paymentSuccess.querySelector('h3');
-                if (h3) h3.textContent = 'Payment Recorded!';
                 const ticketIdDisp = document.getElementById('ticket-id-display');
-                if (ticketIdDisp) ticketIdDisp.textContent = `🎫 Ticket ID: ${result.ticketId}`;
+                if (ticketIdDisp) ticketIdDisp.textContent = `🎫 TICKET ID: ${result.ticketId}`;
 
-                // Remove any existing success message
-                const oldMsg = paymentSuccess.querySelector('.success-message');
-                if (oldMsg) oldMsg.remove();
-
-                // Show message about SMS & WhatsApp
-                const msg = document.createElement('p');
-                msg.className = 'success-message';
-                msg.style.color = '#065f46';
-                msg.style.marginTop = '15px';
-                msg.innerHTML = `
-                    ✅ Your payment was recorded. A confirmation SMS with your ticket has been sent to <strong>${phone}</strong>.<br><br>
-                    <div style="margin-top:10px; font-weight: normal;">
-                        Did not receive it? 
-                        <a href="https://wa.me/254794173314?text=Hi,%20I%20paid%20for%20a%20ticket%20but%20did%20not%20receive%20the%20SMS.%20Ticket%20ID:%20${result.ticketId}" 
-                           target="_blank" style="color: #25D366; font-weight: bold; text-decoration: underline;">
-                           WhatsApp Support
-                        </a>
-                    </div>`;
-                paymentSuccess.appendChild(msg);
+                const waContainer = document.getElementById('success-whatsapp-container');
+                if (waContainer) {
+                    waContainer.innerHTML = `
+                        <div style="margin-top:20px; padding: 15px; background: #f0fff4; border-radius: 12px; border: 1px solid #dcfce7;">
+                            <p style="margin: 0 0 10px 0; font-size: 0.85rem; color: #166534; font-weight: 600;">Didn't receive the SMS?</p>
+                            <a href="https://wa.me/254794173314?text=Hi,%20I%20paid%20for%20a%20ticket%20but%20did%20not%20receive%20the%20SMS.%20Ticket%20ID:%20${result.ticketId}" 
+                               target="_blank" class="btn-primary" 
+                               style="display: block; background: #25D366; color: white; text-decoration: none; padding: 10px; border-radius: 8px; font-size: 0.9rem; font-weight: bold; text-align: center;">
+                               Chat on WhatsApp
+                            </a>
+                        </div>
+                    `;
+                }
             }
 
         } else {

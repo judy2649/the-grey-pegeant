@@ -372,6 +372,117 @@ body {
     font-size: 0.9rem;
 }
 
-.hidden {
-    display: none;
+/* --- Premium UI Enhancements --- */
+
+.modal-content {
+    background: rgba(255, 255, 255, 0.98);
+    border: 1px solid rgba(236, 72, 153, 0.2);
+    box-shadow: 0 25px 50px -12px rgba(236, 72, 153, 0.25);
+    overflow: hidden;
+    padding: 0; /* Remove default padding for custom header */
+}
+
+.modal-header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    padding: 30px 20px;
+    margin-bottom: 0;
+    text-align: center;
+}
+
+#modal-event-name {
+    font-family: 'Great Vibes', cursive;
+    font-size: 2.5rem;
+    margin-bottom: 5px;
+}
+
+.booking-summary {
+    background: #ffffff !important;
+    border: none !important;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    border-radius: 12px;
+    margin: 20px;
+    padding: 20px !important;
+}
+
+.premium-card {
+    background: white;
+    padding: 20px;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    border: 1px solid #f1f5f9;
+}
+
+.instruction-step {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 15px;
+    text-align: left;
+}
+
+.step-number {
+    background: var(--primary);
+    color: white;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+/* Success Card with Image */
+#payment-success {
+    background: white !important;
+    padding: 0 !important;
+    overflow: hidden;
+    border-radius: 16px;
+    border: 1px solid #dcfce7;
+}
+
+.success-header-img {
+    height: 120px;
+    background: linear-gradient(rgba(236, 72, 153, 0.6), rgba(236, 72, 153, 0.6)), url('https://images.unsplash.com/photo-1513151233558-d860c5398176?q=80&w=1000&auto=format&fit=crop');
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 3rem;
+}
+
+.success-content {
+    padding: 25px;
+}
+
+.btn-primary {
+    transition: all 0.3s ease;
+    border: none;
+    box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(236, 72, 153, 0.4);
+    filter: brightness(1.1);
+}
+
+.manual-payment-ui {
+    padding: 20px;
+}
+
+#mpesa-code {
+    letter-spacing: 2px;
+    font-weight: bold;
+    border: 2px solid #e2e8f0;
+    transition: all 0.3s;
+}
+
+#mpesa-code:focus {
+    border-color: var(--primary);
 }

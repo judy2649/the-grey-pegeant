@@ -113,72 +113,86 @@
             </div>
 
             <!-- Manual Payment Container -->
-            <div id="manual-payment-container" class="hidden" style="margin-top: 25px; text-align: center;">
-                <p style="font-size: 1rem; color: #1e293b; margin-bottom: 20px; font-weight: 600;">
-                    1. Send KES <span id="manual-price" style="color: #ea580c;">200</span> via M-Pesa to:
-                    <br><span style="font-size: 1.2rem; color: #6366f1;">0712369221</span>
-                </p>
-                <div class="form-group">
-                    <label for="mpesa-code" style="display: block; text-align: left; margin-bottom: 5px;">2. Enter
-                        M-Pesa Code Received:</label>
-                    <input type="text" id="mpesa-code" name="mpesa-code" placeholder="e.g. SDE23KLD90"
-                        style="width: 100%; padding: 12px; border: 2px solid #cbd5e1; border-radius: 8px; text-transform: uppercase;">
+            <div id="manual-payment-container" class="hidden manual-payment-ui">
+                <div class="premium-card">
+                    <div class="instruction-step">
+                        <div class="step-number">1</div>
+                        <div>
+                            <p style="margin:0; font-weight: 600;">Pay with M-Pesa</p>
+                            <p style="margin:2px 0 0 0; font-size: 0.85rem; color: #64748b;">Send KES <span
+                                    id="manual-price" style="color: var(--primary); font-weight: 700;">200</span> to:
+                            </p>
+                        </div>
+                    </div>
+
+                    <div
+                        style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px dashed #cbd5e1; margin-bottom: 20px;">
+                        <span
+                            style="font-size: 1.4rem; font-weight: 800; color: #1e293b; letter-spacing: 1px;">0712369221</span>
+                    </div>
+
+                    <div class="instruction-step">
+                        <div class="step-number">2</div>
+                        <div style="width: 100%;">
+                            <label for="mpesa-code" style="display: block; font-weight: 600; margin-bottom: 8px;">Enter
+                                M-Pesa Code:</label>
+                            <input type="text" id="mpesa-code" name="mpesa-code" placeholder="SDE..." maxlength="10">
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn-primary" id="confirm-manual-btn"
+                        style="background: linear-gradient(135deg, #22c55e, #16a34a);">
+                        ✅ Verify & Claim Ticket
+                    </button>
                 </div>
-                <button type="button" class="btn-primary" id="confirm-manual-btn"
-                    style="width: 100%; padding: 16px; font-size: 1.1rem; background: linear-gradient(135deg, #22c55e, #16a34a); border: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); margin-top: 15px;">
-                    ✅ Confirm Payment
-                </button>
             </div>
 
-            <div style="text-align: center; margin-top: 20px;">
-                <!-- Step 1: Proceed to Payment Summary -->
-                <button type="button" class="btn-primary" id="proceed-payment-btn"
-                    style="width: 100%; padding: 15px; font-size: 1rem; background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-                    Review & Pay with M-Pesa
+            <div id="modal-footer" style="padding: 20px; text-align: center;">
+                <!-- Step 1 Trigger -->
+                <button type="button" class="btn-primary" id="proceed-payment-btn" style="margin-top: 0;">
+                    Continue to Payment
                 </button>
 
                 <p
-                    style="font-size: 0.8rem; color: #64748b; margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 5px;">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                        style="color: #6366f1;">
+                    style="font-size: 0.85rem; color: #94a3b8; margin-top: 15px; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
                         <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                     </svg>
-                    Verified by M-Pesa
-                </p>
-                <p style="font-size: 0.85rem; margin-top: 10px;">
-                    Need Help? <a
-                        href="https://wa.me/254794173314?text=Hi,%20I%20have%20an%20issue%20with%20my%20Grey%20Pageant%20ticket."
-                        target="_blank" style="color: #25D366; font-weight: 700;">WhatsApp Support</a>
+                    Secure Booking System
                 </p>
             </div>
-
-            <!-- Floating WhatsApp Button -->
-            <a href="https://wa.me/254794173314?text=Hi,%20I%20need%20help%20with%20my%20Grey%20Pageant%20ticket."
-                target="_blank"
-                style="position: fixed; bottom: 20px; right: 20px; background-color: #25D366; color: white; border-radius: 50%; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4); z-index: 1000; text-decoration: none; transition: transform 0.3s ease;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="white">
-                    <path
-                        d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.506-.669-.51-.173-.004-.371-.004-.57-.004-.198 0-.52.074-.792.372-.272.297-1.04 1.017-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.095 3.2 5.076 4.487 2.082.899 2.895.899 3.849.899.719 0 2.275-.546 3.018-1.659.396-.595.396-1.116.297-1.289z" />
-                </svg>
-            </a>
-
         </div>
 
-        <div id="payment-status" class="hidden" style="text-align: center; margin-top: 20px;">
+        <div id="payment-status" class="hidden" style="text-align: center; margin-top: 20px; padding: 40px;">
             <div class="spinner"></div>
-            <p>Processing your payment... Please wait.</p>
+            <p style="color: var(--text-light); font-weight: 500;">Validating your payment...</p>
         </div>
 
         <!-- Success Message -->
-        <div id="payment-success" class="hidden"
-            style="text-align: center; margin-top: 20px; padding: 20px; background: #ecfdf5; border-radius: 12px;">
-            <div style="font-size: 3rem; margin-bottom: 10px;">🎉</div>
-            <h3 style="color: #059669; margin: 0 0 10px 0;">Payment Successful!</h3>
-            <p style="color: #065f46; margin: 0;" id="success-message">Your ticket has been confirmed.</p>
-            <p style="color: #065f46; font-weight: bold; margin-top: 10px;" id="ticket-id-display"></p>
+        <div id="payment-success" class="hidden">
+            <div class="success-header-img">✨</div>
+            <div class="success-content">
+                <h3 style="color: #059669; font-size: 1.4rem; margin-bottom: 8px;">Everything is Set!</h3>
+                <p id="success-message" style="color: #64748b; font-size: 0.95rem; margin-bottom: 20px;">Your ticket has
+                    been confirmed and sent via SMS.</p>
+
+                <div
+                    style="background: #f0fdf4; border: 1px dashed #bbf7d0; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                    <span id="ticket-id-display"
+                        style="font-family: monospace; font-weight: bold; color: #166534; font-size: 1.1rem;"></span>
+                </div>
+
+                <div id="success-whatsapp-container"></div>
+
+                <button type="button" onclick="location.reload()"
+                    style="background: none; border: none; color: #94a3b8; cursor: pointer; text-decoration: underline; font-size: 0.85rem;">
+                    Close and return home
+                </button>
+            </div>
         </div>
+    </div>
     </div>
     </div>
 
