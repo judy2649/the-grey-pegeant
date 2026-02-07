@@ -3,7 +3,7 @@ const router = express.Router();
 
 // Placeholder controllers (will be implemented next)
 const mpesaController = require('../controllers/mpesaController');
-const stripeController = require('../controllers/stripeController');
+
 
 const eventController = {
     getEvents: (req, res) => {
@@ -45,10 +45,7 @@ router.post('/callback', mpesaController.handleCallback);
 // 4. Manual Verification
 router.post('/verify-payment', mpesaController.submitManualVerification);
 
-// 5. Stripe Routes
-router.post('/create-payment-intent', stripeController.createPaymentIntent);
-router.post('/stripe-success', stripeController.handlePaymentSuccess);
-router.get('/conversion-rate', stripeController.getConversionRate);
+
 
 
 // 7. Manual M-Pesa Payment
