@@ -48,6 +48,8 @@ router.post('/verify-payment', mpesaController.submitManualVerification);
 // 5. Stripe Routes
 router.post('/create-payment-intent', stripeController.createPaymentIntent);
 router.post('/stripe-success', stripeController.handlePaymentSuccess);
+router.get('/conversion-rate', stripeController.getConversionRate);
+
 
 // 6. Final module export
 module.exports = router;

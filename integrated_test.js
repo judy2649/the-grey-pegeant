@@ -12,7 +12,7 @@ async function runIntegratedTest() {
             // 1. Pay
             console.log('Testing /api/pay...');
             const payRes = await axios.post(`http://localhost:${PORT}/api/pay`, {
-                phoneNumber: '0794173314',
+                phoneNumber: '0712369221',
                 amount: 1,
                 eventId: 'test_event'
             });
