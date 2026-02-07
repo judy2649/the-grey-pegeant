@@ -4,7 +4,6 @@ const router = express.Router();
 // Placeholder controllers (will be implemented next)
 const mpesaController = require('../controllers/mpesaController');
 const stripeController = require('../controllers/stripeController');
-const stripeController = require('../controllers/stripeController');
 
 const eventController = {
     getEvents: (req, res) => {
