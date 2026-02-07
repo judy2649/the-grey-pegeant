@@ -1,8 +1,9 @@
 const axios = require('axios');
 require('dotenv').config();
 
-const PORT = 3002; // Change this to your running server port if needed
-const BASE_URL = `http://localhost:${PORT}/api`;
+// Get the URL from the command line argument, or use the default
+const TARGET_URL = process.argv[2] || 'http://localhost:3002';
+const BASE_URL = TARGET_URL.endsWith('/api') ? TARGET_URL : `${TARGET_URL}/api`;
 
 async function runTests() {
     console.log('🚀 --- Starting Manual M-Pesa Integration Test ---');
@@ -15,6 +16,7 @@ async function runTests() {
     await testManualPayment();
 
     console.log('\n✅ --- All Tests Completed ---');
+    console.log(`\n👉 Verify your live site at: ${TARGET_URL}`);
 }
 
 async function testGetEvents() {
@@ -31,9 +33,8 @@ async function testGetEvents() {
 async function testManualPayment() {
     console.log('\n🔹 TEST 2: Submit Manual Payment');
 
-    // Simulate user entering a payment code
     const payload = {
-        mpesaCode: 'SDE23KL90M', // 10-char code
+        mpesaCode: 'THT' + Math.floor(Math.random() * 10000000), // Random code for testing
         phoneNumber: '0712369221',
         name: 'Test Automatic User',
         email: 'test@example.com',
@@ -51,7 +52,7 @@ async function testManualPayment() {
         console.log('   Message:', response.data.message);
 
         if (response.data.success) {
-            console.log('📧 Notification Triggered (check backend logs for SMS output)');
+            console.log('📧 Notification Triggered (check backend logs or phone for SMS)');
         }
     } catch (error) {
         handleError(error, 'Manual Payment');
@@ -62,9 +63,10 @@ function handleError(error, context) {
     console.error(`\n❌ Error during ${context}:`);
     if (error.response) {
         console.error('   Status:', error.response.status);
-        console.error('   Error:', error.response.data);
+        console.error('   Error Data:', JSON.stringify(error.response.data, null, 2));
     } else if (error.request) {
-        console.error('   ⚠️ Server not reachable. Is it running? (node start_alternate.js)');
+        console.error('   ⚠️ Target not reachable. Is the URL correct?');
+        console.log(`   Attempted URL: ${BASE_URL}`);
     } else {
         console.error('   Message:', error.message);
     }
