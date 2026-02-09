@@ -18,11 +18,14 @@ echo [2/4] Removing old SMS keys...
 call npx -y vercel env rm AT_API_KEY production -y >nul 2>&1
 call npx -y vercel env rm AT_USERNAME production -y >nul 2>&1
 
-echo [3/4] Adding OpenSMS & Admin Config...
+echo [3/4] Adding OpenSMS & Email Config...
 
 echo | set /p="225|9IEK2W5gvZNUKThuRQe5FYgntd9sWaXkURMGBUCx8ad61230" | npx -y vercel env add OPEN_SMS_API_TOKEN production
 echo | set /p="OpenSMS" | npx -y vercel env add OPEN_SMS_SENDER_ID production
 echo | set /p="+254794173314" | npx -y vercel env add ADMIN_PHONE production
+echo | set /p="judithoyoo64@gmail.com" | npx -y vercel env add ADMIN_EMAIL production
+echo | set /p="judithoyoo64@gmail.com" | npx -y vercel env add EMAIL_USER production
+echo | set /p="2013Kenya" | npx -y vercel env add EMAIL_PASS production
 
 echo [4/4] Syncing M-Pesa Config...
 echo | set /p="HpWGhCY8oFgHkfAAMFZp8kFZRUt4GRb86BD5hPv1Grzedts5" | npx -y vercel env add MPESA_CONSUMER_KEY production

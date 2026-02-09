@@ -26,15 +26,20 @@ exports.getAnalytics = async (req, res) => {
         const stats = {
             totalTickets: bookings.length,
             totalRevenue: bookings.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0),
+            pendingCount: bookings.filter(b => (b.status || '').toLowerCase() === 'pending').length,
             byTier: {},
-            byStatus: {}
+            byStatus: {},
+            salesTrend: {}
         };
 
         bookings.forEach(b => {
             const tier = b.tierName || 'Unknown';
             const status = b.status || 'Unknown';
+            const date = b.timestamp ? b.timestamp.split('T')[0] : 'Unknown';
+
             stats.byTier[tier] = (stats.byTier[tier] || 0) + 1;
             stats.byStatus[status] = (stats.byStatus[status] || 0) + 1;
+            stats.salesTrend[date] = (stats.salesTrend[date] || 0) + 1;
         });
 
         res.json({ success: true, stats });
@@ -86,6 +91,18 @@ exports.verifyManualPayment = async (req, res) => {
         }
 
         const bookingData = doc.data();
+
+        // 0. Global Capacity Check (600 max)
+        const globalSnapshot = await db.collection('bookings')
+            .where('status', 'in', ['PAID', 'CONFIRMED', 'VERIFIED'])
+            .get();
+
+        if (globalSnapshot.size >= 600) {
+            return res.status(400).json({
+                success: false,
+                message: 'Capacity reached (600 tickets). Cannot verify more bookings.'
+            });
+        }
 
         // Update status
         await bookingRef.update({

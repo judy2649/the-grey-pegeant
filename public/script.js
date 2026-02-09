@@ -247,6 +247,13 @@ async function submitManualPayment(name, email, phone) {
             if (paymentSuccess) {
                 paymentSuccess.classList.remove('hidden');
                 paymentSuccess.style.display = 'block';
+
+                // Update success message with credentials
+                const successMsg = document.getElementById('success-message');
+                if (successMsg) {
+                    successMsg.innerHTML = `Your ticket has been confirmed and sent via SMS to <strong>${phone}</strong> and via Email to <strong>${email}</strong>.`;
+                }
+
                 const ticketIdDisp = document.getElementById('ticket-id-display');
                 if (ticketIdDisp) ticketIdDisp.textContent = `🎫 TICKET ID: ${result.ticketId}`;
 
