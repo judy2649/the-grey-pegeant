@@ -121,6 +121,7 @@ exports.processManualPayment = async (req, res) => {
         // 7. Send Notifications (Immediate Delivery)
         const ticketMsg = `✅ Your Ticket for ${eventName} is CONFIRMED!\n🎫 Ticket: ${ticketId}\n📍 Location: Marine Park\n🗺 Direction: ${googleMapsLink}\n\nSee you there!`;
 
+        let results = [];
         try {
             console.log('📤 Sending parallel notifications...');
             const notifications = [];
@@ -147,7 +148,7 @@ exports.processManualPayment = async (req, res) => {
             notifications.push(sendAdminEmail('💰 New Payment Auto-Approved', `<p><strong>Manual Payment Auto-Approved!</strong></p><p><strong>Code:</strong> ${mpesaCode.toUpperCase()}</p><p><strong>User:</strong> ${name} (${phoneNumber})</p><p><strong>Amount:</strong> KES ${amount}</p>`));
 
             // Execute all notifications and WAIT for them (to prevent Vercel killing the process)
-            const results = await Promise.allSettled(notifications);
+            results = await Promise.allSettled(notifications);
 
             const failed = results.filter(r => r.status === 'rejected' || (r.value && r.value.status === 'failed'));
             if (failed.length > 0) console.warn(`⚠️ Some notifications failed: ${failed.length}`);
