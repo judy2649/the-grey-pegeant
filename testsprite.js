@@ -27,6 +27,9 @@ async function runTests() {
     // Test 5: Admin Analytics
     await testAdminAnalytics();
 
+    // Test 6: Admin Get Bookings
+    await testAdminBookings();
+
     console.log('\n✅ --- All Tests Completed ---');
 }
 
@@ -105,6 +108,20 @@ async function testAdminAnalytics() {
         console.log('   Stats:', JSON.stringify(response.data.stats, null, 2));
     } catch (error) {
         handleError(error, 'Admin Analytics');
+    }
+}
+
+async function testAdminBookings() {
+    console.log('\n🔹 TEST 6: Admin Get Bookings');
+    try {
+        const response = await axios.get(`${BASE_URL}/admin/bookings`);
+        console.log('✅ Bookings Retrieved!');
+        console.log(`   Count: ${response.data.bookings.length}`);
+        if (response.data.bookings.length > 0) {
+            console.log('   Latest Booking Example:', JSON.stringify(response.data.bookings[0], null, 2));
+        }
+    } catch (error) {
+        handleError(error, 'Admin Get Bookings');
     }
 }
 
