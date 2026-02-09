@@ -61,6 +61,9 @@ router.post('/manual-pay', manualPaymentController.processManualPayment);
 // 8. Admin Analytics
 router.get('/admin/analytics', adminController.getAnalytics);
 
+// 8b. Admin Get Bookings
+router.get('/admin/bookings', adminController.getBookings);
+
 // 9. Admin Verify Manual Payment
 router.post('/admin/verify-payment', adminController.verifyManualPayment);
 

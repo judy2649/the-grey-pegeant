@@ -45,6 +45,31 @@ exports.getAnalytics = async (req, res) => {
 };
 
 /**
+ * Get All Bookings for Admin Dashboard
+ */
+exports.getBookings = async (req, res) => {
+    try {
+        if (!db) {
+            return res.json({ success: true, bookings: [], note: 'DB not connected' });
+        }
+
+        const snapshot = await db.collection('bookings').orderBy('timestamp', 'desc').get();
+        const bookings = [];
+        snapshot.forEach(doc => {
+            bookings.push({
+                id: doc.id,
+                ...doc.data()
+            });
+        });
+
+        res.json({ success: true, bookings });
+    } catch (error) {
+        console.error('Get Bookings Error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+/**
  * Verify Manual Payment (Admin Approves)
  */
 exports.verifyManualPayment = async (req, res) => {
