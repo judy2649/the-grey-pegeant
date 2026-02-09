@@ -45,7 +45,7 @@ exports.processManualPayment = async (req, res) => {
 
         console.log(`⚡ Parallelizing checks for ${mpesaRef}...`);
 
-        const [duplicateCheck, apiVerify, tierCount] = await Promise.all([
+        const [duplicateCheck, apiVerify, tierCount, globalCount] = await Promise.all([
             // A) Check for duplicates
             db ? db.collection('bookings').where('mpesaCode', '==', mpesaRef).limit(1).get() : Promise.resolve({ empty: true }),
 
