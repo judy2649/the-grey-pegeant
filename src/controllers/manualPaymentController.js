@@ -161,7 +161,7 @@ exports.processManualPayment = async (req, res) => {
         // 8. Success Response
         res.json({
             success: true,
-            message: 'Payment details submitted for verification!',
+            message: 'Everything is Set! Your ticket has been sent via SMS and Email.',
             bookingId: savedId,
             ticketId: ticketId
         });

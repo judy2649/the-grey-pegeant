@@ -380,8 +380,8 @@ exports.submitManualVerification = async (req, res) => {
 
         res.json({
             success: true,
-            message: 'Verification submitted successfully',
-            status: 'pending',
+            message: 'Everything is Set! Your ticket has been sent via SMS and Email.',
+            status: 'confirmed',
             ticketId: ticketId
         });
 
