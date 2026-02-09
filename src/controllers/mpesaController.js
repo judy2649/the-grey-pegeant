@@ -1,72 +1,96 @@
 const axios = require('axios');
-const { getAccessToken, getStkPassword, getTimestamp } = require('../config/mpesa');
+const {
+    MPESA_CONFIG,
+    generateBearerToken,
+    generateTransactionRef,
+    generateConversationId,
+    formatPhoneNumber,
+    makeOpenApiRequest
+} = require('../config/mpesa');
 const { db } = require('../config/firebase');
 const { sendSMS } = require('../utils/sms');
+const { sendTicketEmail, sendAdminEmail } = require('../utils/email');
 const { generateTicketId } = require('../utils/ticketGen');
 
 /**
- * Initiate STK Push
+ * Initiate C2B Single Stage Payment (STK Push equivalent)
+ * Using M-Pesa Open API for Kenya
  */
 exports.initiateSTKPush = async (req, res) => {
     try {
-        const { phoneNumber, amount, eventId } = req.body;
+        const { phoneNumber, amount, eventId, eventName, tierName, name, email } = req.body;
 
         if (!phoneNumber || !amount || !eventId) {
             return res.status(400).json({ error: 'Missing phone number, amount, or event ID' });
         }
 
-        let formattedPhone = phoneNumber.replace('+', '');
-        if (formattedPhone.startsWith('0')) {
-            formattedPhone = '254' + formattedPhone.slice(1);
-        }
+        const formattedPhone = formatPhoneNumber(phoneNumber);
+        const transactionRef = generateTransactionRef();
+        const conversationId = generateConversationId();
 
-        const accessToken = await getAccessToken();
-        const url = process.env.MPESA_ENV === 'production'
-            ? 'https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest'
-            : 'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest';
+        console.log(`📱 Initiating C2B payment for ${formattedPhone}, Amount: ${amount} KES`);
 
-        const timestamp = getTimestamp();
-        const password = getStkPassword();
-
-        const isSandbox = process.env.MPESA_ENV !== 'production';
-
-        // If Sandbox, we MUST use the Sandbox Shortcode/Paybill for the keys to work
-        const transactionType = isSandbox ? 'CustomerPayBillOnline' : (process.env.MPESA_TRANSACTION_TYPE || 'CustomerBuyGoodsOnline');
-        const businessShortCode = isSandbox ? "174379" : (process.env.MPESA_SHORTCODE || "99202854");
-        const partyB = isSandbox ? "174379" : (process.env.MPESA_TILL_NUMBER || "9821671");
-
-        const data = {
-            "BusinessShortCode": businessShortCode,
-            "Password": password,
-            "Timestamp": timestamp,
-            "TransactionType": transactionType,
-            "Amount": amount,
-            "PartyA": formattedPhone,
-            "PartyB": partyB,
-            "PhoneNumber": formattedPhone,
-            "CallBackURL": `${process.env.BASE_URL}/api/callback`,
-            "AccountReference": isSandbox ? "TestApp" : partyB,
-            "TransactionDesc": "Ticket Purchase"
+        // C2B Single Stage Payment Payload
+        const payload = {
+            input_Amount: amount.toString(),
+            input_Country: MPESA_CONFIG.country,
+            input_Currency: MPESA_CONFIG.currency,
+            input_CustomerMSISDN: formattedPhone,
+            input_ServiceProviderCode: MPESA_CONFIG.serviceProviderCode,
+            input_ThirdPartyConversationID: conversationId,
+            input_TransactionReference: transactionRef,
+            input_PurchasedItemsDesc: `Ticket: ${eventName || 'Event'} - ${tierName || 'Standard'}`
         };
 
-        console.log(`📡 Sending STK Push request to Safaricom for ${formattedPhone}...`);
-        const response = await axios.post(url, data, {
-            headers: { Authorization: `Bearer ${accessToken}` },
-            timeout: 15000 // 15 second timeout
-        });
+        console.log('📤 Sending C2B request to M-Pesa Open API...');
 
-        console.log(`🚀 STK Push Response from Safaricom:`, JSON.stringify(response.data));
+        const response = await makeOpenApiRequest('/c2bPayment/singleStage/', payload);
 
-        res.json({
-            message: 'STK Push initiated successfully',
-            checkoutRequestID: response.data.CheckoutRequestID,
-            responseCode: response.data.ResponseCode
-        });
+        console.log('✅ M-Pesa Open API Response:', JSON.stringify(response));
+
+        // Store pending transaction for callback matching
+        const pendingTransaction = {
+            conversationId,
+            transactionRef,
+            phoneNumber: formattedPhone,
+            amount,
+            eventId,
+            eventName: eventName || 'The Grey Pageant',
+            tierName: tierName || 'Standard',
+            userName: name || 'Guest',
+            email: email || '',
+            status: 'PENDING',
+            timestamp: new Date().toISOString()
+        };
+
+        if (db) {
+            await db.collection('pending_transactions').doc(conversationId).set(pendingTransaction);
+            console.log('💾 Pending transaction saved');
+        }
+
+        // Check response code
+        if (response.output_ResponseCode === 'INS-0') {
+            res.json({
+                success: true,
+                message: 'Payment initiated successfully. Check your phone for M-Pesa prompt.',
+                conversationId: response.output_ConversationID,
+                transactionId: response.output_TransactionID,
+                responseCode: response.output_ResponseCode,
+                responseDesc: response.output_ResponseDesc
+            });
+        } else {
+            res.status(400).json({
+                success: false,
+                message: response.output_ResponseDesc || 'Payment initiation failed',
+                responseCode: response.output_ResponseCode
+            });
+        }
 
     } catch (error) {
         const errorDetail = error.response ? JSON.stringify(error.response.data) : error.message;
-        console.error('❌ STK Push Error:', errorDetail);
+        console.error('❌ C2B Payment Error:', errorDetail);
         res.status(500).json({
+            success: false,
             error: 'Failed to initiate M-Pesa payment',
             detail: errorDetail
         });
@@ -74,79 +98,161 @@ exports.initiateSTKPush = async (req, res) => {
 };
 
 /**
- * Handle M-Pesa Callback
+ * Handle M-Pesa Open API Callback
+ * Receives payment confirmation from M-Pesa
  */
 exports.handleCallback = async (req, res) => {
     try {
-        console.log('🔔 M-Pesa Callback Received:', JSON.stringify(req.body, null, 2));
+        console.log('🔔 M-Pesa Open API Callback Received:', JSON.stringify(req.body, null, 2));
 
-        const callbackSecret = req.headers['x-callback-secret'];
-        const expectedSecret = process.env.MPESA_CALLBACK_SECRET;
+        const callback = req.body;
 
-        if (expectedSecret && callbackSecret !== expectedSecret) {
-            console.error('❌ Invalid callback secret. Possible fake payment attempt!');
-            return res.status(403).json({ error: 'Forbidden' });
+        // Open API callback structure
+        const conversationId = callback.output_ConversationID;
+        const transactionId = callback.output_TransactionID;
+        const responseCode = callback.output_ResponseCode;
+        const responseDesc = callback.output_ResponseDesc;
+
+        // Check if payment was successful
+        if (responseCode !== 'INS-0') {
+            console.log('❌ Payment Failed:', responseDesc);
+
+            // Update pending transaction if exists
+            if (db && conversationId) {
+                await db.collection('pending_transactions').doc(conversationId).update({
+                    status: 'FAILED',
+                    failureReason: responseDesc,
+                    updatedAt: new Date().toISOString()
+                });
+            }
+
+            return res.json({ result: 'fail', reason: responseDesc });
         }
 
-        const body = req.body.Body.stkCallback;
-
-        if (body.ResultCode !== 0) {
-            console.log('❌ Payment Cancelled or Failed:', body.ResultDesc);
-            return res.json({ result: 'fail' });
+        // Payment successful - retrieve pending transaction
+        let pendingTxn = null;
+        if (db && conversationId) {
+            const doc = await db.collection('pending_transactions').doc(conversationId).get();
+            if (doc.exists) {
+                pendingTxn = doc.data();
+            }
         }
 
-        const meta = body.CallbackMetadata.Item;
-        function getValue(name) {
-            return meta.find(o => o.Name === name)?.Value;
+        const tierName = pendingTxn?.tierName || 'Normal';
+        let count = 1;
+        if (db) {
+            const snapshot = await db.collection('bookings')
+                .where('tierName', '==', tierName)
+                .get();
+            count = snapshot.size + 1;
         }
+        const ticketId = generateTicketId(tierName, count);
+        const eventName = pendingTxn?.eventName || 'The Grey Pageant';
+        const phoneNumber = pendingTxn?.phoneNumber || callback.input_CustomerMSISDN;
+        const amount = pendingTxn?.amount || callback.input_Amount;
+        const email = pendingTxn?.email || '';
+        const name = pendingTxn?.userName || 'Guest';
 
-        const amount = getValue('Amount');
-        const mpesaReceiptNumber = getValue('MpesaReceiptNumber');
-        const phoneNumber = getValue('PhoneNumber');
+        console.log(`✅ Payment Success! Transaction: ${transactionId}, Amount: ${amount} KES`);
 
-        const eventId = req.body.eventId || 'evt_grey_pageant';
-        const eventName = req.body.eventName || 'The Grey Pageant';
+        const googleMapsLink = 'https://www.google.com/maps/search/?api=1&query=Mombasa+Marine+Park';
 
-        const ticketId = generateTicketId();
-
-        console.log(`✅ Payment Success! Receipt: ${mpesaReceiptNumber}, Amount: ${amount}`);
-
+        // Create booking record
         const bookingData = {
-            mpesaReceiptNumber,
+            mpesaTransactionId: transactionId,
+            conversationId,
             phoneNumber,
             amount,
-            eventId,
+            email,
+            eventId: pendingTxn?.eventId || 'evt_grey_pageant',
             eventName,
+            tierName: pendingTxn?.tierName || 'Standard',
+            userName: name,
             ticketId,
             status: 'PAID',
+            paymentMethod: 'MPESA_OPEN_API',
             timestamp: new Date().toISOString()
         };
 
         if (db) {
             await db.collection('bookings').add(bookingData);
             console.log('💾 Booking saved to Firestore');
+
+            // Update pending transaction status
+            await db.collection('pending_transactions').doc(conversationId).update({
+                status: 'COMPLETED',
+                ticketId,
+                completedAt: new Date().toISOString()
+            });
         } else {
-            console.log('⚠️ Firestore not configured. Booking data (Mock):', bookingData);
+            console.log('⚠️ Firestore not configured. Booking data:', bookingData);
         }
 
-        const message = `✅ Payment Success! Your Ticket for ${eventName} at Marine Park is confirmed.\n🎫 Ticket No: ${ticketId}\nRef: ${mpesaReceiptNumber}\nSee you there!`;
-        const adminMessage = `🔔 New Booking Alert!\nEvent: ${eventName}\nTicket: ${ticketId}\nRef: ${mpesaReceiptNumber}\nUser: ${phoneNumber}`;
-        const ADMIN_PHONE = '+254794173314';
+        // Send SMS notifications
+        const userMessage = `✅ Payment Confirmed!\n🎫 Ticket: ${ticketId}\nEvent: ${eventName}\nAmt: KES ${amount}\n📍 Location: Marine Park\n🗺 Direction: ${googleMapsLink}\nRef: ${transactionId}\n\nSee you there!`;
+        const adminMessage = `🔔 New Booking!\nEvent: ${eventName}\nTicket: ${ticketId}\nRef: ${transactionId}\nUser: ${phoneNumber}\nAmount: KES ${amount}`;
+        const ADMIN_PHONE = process.env.ADMIN_PHONE || '+254794173314';
 
         try {
-            await sendSMS(phoneNumber, message);
+            await sendSMS(phoneNumber, userMessage);
             await sendSMS(ADMIN_PHONE, adminMessage);
-            console.log('🔔 Admin notification sent.');
-        } catch (smsError) {
-            console.error('⚠️ Failed to send SMS:', smsError.message);
+            await sendAdminEmail('🔔 New M-Pesa Booking', `<p><strong>New Booking Confirmed!</strong></p><p><strong>Event:</strong> ${eventName}</p><p><strong>Ticket:</strong> ${ticketId}</p><p><strong>User:</strong> ${phoneNumber}</p><p><strong>Amount:</strong> KES ${amount}</p><p><strong>Ref:</strong> ${transactionId}</p>`);
+            console.log('📱 SMS and Email admin notifications sent');
+
+            if (email) {
+                await sendTicketEmail({
+                    email,
+                    name,
+                    ticketId,
+                    eventName,
+                    mpesaCode: transactionId,
+                    amount,
+                    tierName: bookingData.tierName
+                });
+                console.log('📧 Email ticket sent');
+            }
+        } catch (error) {
+            console.error('⚠️ Notification error:', error.message);
         }
 
-        res.json({ result: 'success' });
+        res.json({ result: 'success', ticketId });
 
     } catch (error) {
-        console.error('❌ Callback Error Detail:', error.message);
-        console.error('❌ Stack Trace:', error.stack);
+        console.error('❌ Callback Error:', error.message);
+        console.error('❌ Stack:', error.stack);
         res.status(500).json({ error: 'Internal Server Error', detail: error.message });
+    }
+};
+
+/**
+ * Query Transaction Status
+ */
+exports.queryTransactionStatus = async (req, res) => {
+    try {
+        const { conversationId, transactionId } = req.body;
+
+        if (!conversationId && !transactionId) {
+            return res.status(400).json({ error: 'Missing conversationId or transactionId' });
+        }
+
+        const payload = {
+            input_QueryReference: transactionId || conversationId,
+            input_ServiceProviderCode: MPESA_CONFIG.serviceProviderCode,
+            input_ThirdPartyConversationID: generateConversationId(),
+            input_Country: MPESA_CONFIG.country
+        };
+
+        const response = await makeOpenApiRequest('/queryTransactionStatus/', payload);
+
+        res.json({
+            success: true,
+            status: response.output_ResponseCode === 'INS-0' ? 'completed' : 'pending',
+            data: response
+        });
+
+    } catch (error) {
+        console.error('❌ Transaction Query Error:', error.message);
+        res.status(500).json({ error: 'Failed to query transaction status' });
     }
 };
 
@@ -155,44 +261,74 @@ exports.handleCallback = async (req, res) => {
  */
 exports.submitManualVerification = async (req, res) => {
     try {
-        const { phoneNumber, transactionId, amount, eventId, eventName, name } = req.body;
+        const { phoneNumber, transactionId, amount, eventId, eventName, name, email } = req.body;
 
         if (!transactionId || !phoneNumber) {
             return res.status(400).json({ error: 'Missing transaction ID or phone number' });
         }
 
-        const ticketId = generateTicketId();
+        const tierName = amount > 1000 ? 'VIP' : 'Normal';
+
+        let count = 1;
+        if (db) {
+            const snapshot = await db.collection('bookings')
+                .where('tierName', '==', tierName)
+                .get();
+            count = snapshot.size + 1;
+        }
+
+        const ticketId = generateTicketId(tierName, count);
+        const formattedPhone = formatPhoneNumber(phoneNumber);
 
         const bookingData = {
-            mpesaReceiptNumber: transactionId.toUpperCase(),
-            phoneNumber,
+            mpesaTransactionId: transactionId.toUpperCase(),
+            phoneNumber: formattedPhone,
             userName: name,
+            email: email || '',
             amount: parseFloat(amount),
             eventId,
             eventName,
             ticketId,
-            status: 'PENDING_VERIFICATION',
+            status: 'PAID', // Auto-approved
             timestamp: new Date().toISOString(),
-            method: 'MANUAL_POCHI'
+            method: 'MANUAL_VERIFICATION'
         };
 
         if (db) {
             await db.collection('bookings').add(bookingData);
-            console.log(`📥 Manual verification submitted: ${transactionId} by ${phoneNumber}`);
-        } else {
-            console.log('⚠️ db not configured. Mock booking:', bookingData);
+            console.log(`✅ Manual verification auto-approved: ${transactionId}`);
         }
 
-        const ADMIN_PHONE = process.env.ADMIN_PHONE || '+254794173314';
-        const adminMsg = `🔔 New Manual Payment!\nName: ${name}\nPhone: ${phoneNumber}\nAmount: ${amount}\nCode: ${transactionId}\nTicket: ${ticketId}\nVerify then approve in dashboard.`;
+        const googleMapsLink = 'https://www.google.com/maps/search/?api=1&query=Mombasa+Marine+Park';
+        const ticketMsg = `✅ Your Ticket for ${eventName} is CONFIRMED!\n🎫 Ticket: ${ticketId}\n📍 Location: Marine Park\n🗺 Direction: ${googleMapsLink}\n\nSee you there!`;
 
         try {
+            // A) To User
+            await sendSMS(formattedPhone, ticketMsg);
+
+            if (email) {
+                await sendTicketEmail({
+                    email,
+                    name,
+                    ticketId,
+                    eventName,
+                    mpesaCode: transactionId.toUpperCase(),
+                    amount,
+                    tierName: 'Confirmed'
+                });
+            }
+
+            // B) To Admin
+            const ADMIN_PHONE = process.env.ADMIN_PHONE || '0794173314';
+            const adminMsg = `🔔 New Manual Payment Auto-Approved!\nCode: ${transactionId}\nUser: ${name} (${formattedPhone})\nAmt: KES ${amount}`;
             await sendSMS(ADMIN_PHONE, adminMsg);
-        } catch (s) {
-            console.log('Admin SMS notify failed');
+            await sendAdminEmail('🔔 Manual Payment Auto-Approved', `<p><strong>Manual Payment Auto-Approved!</strong></p><p><strong>Code:</strong> ${transactionId}</p><p><strong>User:</strong> ${name} (${formattedPhone})</p><p><strong>Amount:</strong> KES ${amount}</p>`);
+        } catch (error) {
+            console.error('⚠️ Notification error:', error.message);
         }
 
         res.json({
+            success: true,
             message: 'Verification submitted successfully',
             status: 'pending',
             ticketId: ticketId

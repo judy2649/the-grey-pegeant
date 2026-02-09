@@ -372,67 +372,120 @@ body {
     font-size: 0.9rem;
 }
 
-/* --- Premium UI Enhancements --- */
+/* --- Premium UI Enhancements (Compact & Snacky) --- */
 
 .modal-content {
-    background: rgba(255, 255, 255, 0.98);
-    border: 1px solid rgba(236, 72, 153, 0.2);
-    box-shadow: 0 25px 50px -12px rgba(236, 72, 153, 0.25);
+    background: rgba(255, 255, 255, 0.99);
+    border: 1px solid rgba(236, 72, 153, 0.1);
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.15);
     overflow: hidden;
-    padding: 0; /* Remove default padding for custom header */
+    padding: 0;
+    max-width: 380px;
+    /* Slightly narrower for that "snack" feel */
 }
 
 .modal-header {
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
     color: white;
-    padding: 30px 20px;
+    padding: 20px 15px;
+    /* Reduced padding */
     margin-bottom: 0;
     text-align: center;
 }
 
 #modal-event-name {
     font-family: 'Great Vibes', cursive;
-    font-size: 2.5rem;
-    margin-bottom: 5px;
+    font-size: 2.2rem;
+    /* Slighly smaller */
+    margin-bottom: 0;
+}
+
+.modal-header #modal-event-price {
+    display: none;
+    /* Hide the badge in header to keep it clean */
 }
 
 .booking-summary {
-    background: #ffffff !important;
-    border: none !important;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    background: #fdf2f8 !important;
+    /* Soft pink tint */
+    border: 1px solid rgba(236, 72, 153, 0.1) !important;
+    box-shadow: none !important;
     border-radius: 12px;
-    margin: 20px;
-    padding: 20px !important;
+    margin: 15px;
+    /* Smaller margin */
+    padding: 15px !important;
+    /* Smaller padding */
+    font-size: 0.9rem;
 }
 
 .premium-card {
     background: white;
-    padding: 20px;
-    border-radius: 16px;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    padding: 15px;
+    /* More compact */
+    border-radius: 14px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     border: 1px solid #f1f5f9;
 }
 
 .instruction-step {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 15px;
+    gap: 10px;
+    margin-bottom: 12px;
     text-align: left;
 }
 
 .step-number {
     background: var(--primary);
     color: white;
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    /* Smaller step circles */
+    height: 24px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: bold;
-    font-size: 0.85rem;
+    font-weight: 700;
+    font-size: 0.75rem;
     flex-shrink: 0;
+}
+
+.manual-payment-ui {
+    padding: 0 15px 15px 15px;
+    /* Adjusted padding */
+}
+
+#mpesa-code {
+    letter-spacing: 1.5px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    padding: 10px !important;
+    border: 2px solid #f1f5f9;
+    background: #f8fafc;
+    border-radius: 10px;
+}
+
+#mpesa-code:focus {
+    border-color: var(--primary);
+    background: white;
+}
+
+.mpesa-number-pill {
+    background: #f8fafc;
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px dashed #cbd5e1;
+    margin: 10px 0;
+    display: inline-block;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.btn-primary {
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 0.95rem;
+    letter-spacing: 0.5px;
 }
 
 /* Success Card with Image */
@@ -441,48 +494,21 @@ body {
     padding: 0 !important;
     overflow: hidden;
     border-radius: 16px;
-    border: 1px solid #dcfce7;
 }
 
 .success-header-img {
-    height: 120px;
-    background: linear-gradient(rgba(236, 72, 153, 0.6), rgba(236, 72, 153, 0.6)), url('https://images.unsplash.com/photo-1513151233558-d860c5398176?q=80&w=1000&auto=format&fit=crop');
+    height: 100px;
+    /* Slimmer header */
+    background: linear-gradient(rgba(236, 72, 153, 0.4), rgba(236, 72, 153, 0.4)), url('https://images.unsplash.com/photo-1513151233558-d860c5398176?q=80&w=1000&auto=format&fit=crop');
     background-size: cover;
     background-position: center;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 3rem;
+    font-size: 2.5rem;
 }
 
 .success-content {
-    padding: 25px;
-}
-
-.btn-primary {
-    transition: all 0.3s ease;
-    border: none;
-    box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);
-}
-
-.btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(236, 72, 153, 0.4);
-    filter: brightness(1.1);
-}
-
-.manual-payment-ui {
     padding: 20px;
-}
-
-#mpesa-code {
-    letter-spacing: 2px;
-    font-weight: bold;
-    border: 2px solid #e2e8f0;
-    transition: all 0.3s;
-}
-
-#mpesa-code:focus {
-    border-color: var(--primary);
 }

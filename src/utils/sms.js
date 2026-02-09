@@ -23,6 +23,9 @@ const sendSMS = async (to, message) => {
         formattedPhone = '254' + formattedPhone.substring(1);
     }
 
+    console.log('📱 SMS Attempt - To:', formattedPhone, 'SenderId:', senderId);
+    console.log('🔑 SMS Token Configured:', !!apiToken);
+
     try {
         const response = await axios.post('https://api.opensms.co.ke/v3/sms/send', {
             recipient: formattedPhone,

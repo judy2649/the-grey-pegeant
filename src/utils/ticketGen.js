@@ -1,16 +1,21 @@
 /**
- * Generates a random alphanumeric string of a given length.
- * Useful for unique Ticket IDs.
- * @param {number} length 
+ * Formats a sequential ticket ID.
+ * @param {string} tier - The ticket tier (Normal, VIP, VVIP)
+ * @param {number} count - The current sequence number
  * @returns {string}
  */
-const generateTicketId = (length = 6) => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let result = '';
-    for (let i = 0; i < length; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
+const generateTicketId = (tier = 'Normal', count = 1) => {
+    // Ensure first letter is uppercase, rest lowercase (e.g., "Normal", "Vip")
+    // For VVIP, keep it as VVIP
+    let tierDisplay = tier.charAt(0).toUpperCase() + tier.slice(1).toLowerCase();
+
+    // special case for acronyms
+    const upper = tier.toUpperCase();
+    if (upper === 'VVIP' || upper.includes('VVIP')) tierDisplay = 'VVIP';
+    else if (upper === 'VIP' || upper.includes('VIP')) tierDisplay = 'VIP';
+    else if (upper === 'NORMAL') tierDisplay = 'Normal';
+
+    return `${tierDisplay} ticket ${count}`;
 };
 
 module.exports = { generateTicketId };

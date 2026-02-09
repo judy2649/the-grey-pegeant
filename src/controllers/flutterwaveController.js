@@ -2,23 +2,10 @@ const axios = require('axios');
 const dotenv = require('dotenv');
 const { generateTicketId } = require('../utils/ticketGen');
 const { sendSMS } = require('../utils/sms');
+const { sendTicketEmail, sendAdminEmail } = require('../utils/email');
 const { db } = require('../config/firebase');
 
 dotenv.config();
-
-/**
- * Initiates a Flutterwave payment
- * Note: Flutterwave usually handles this client-side via Inline Modal or Standard Checkout
- * But we can verify transactions server-side here.
- */
-exports.initiatePayment = async (req, res) => {
-    // For Flutterwave, most logic happens on frontend with the Public Key.
-    // The backend is mainly for verification after payment.
-    res.json({
-        publicKey: process.env.FLW_PUBLIC_KEY,
-        message: 'Ready for Flutterwave Inline'
-    });
-};
 
 /**
  * Verify Transaction after successful payment on frontend
@@ -27,8 +14,6 @@ exports.verifyPayment = async (req, res) => {
     try {
         const { transactionId, status, flwRef, amount, currency, customer, eventName, ticketDetails } = req.body;
 
-        // 1. Verify transaction with Flutterwave API (Server-to-Server check)
-        // This prevents users from faking success
         const flwSecretKey = process.env.FLW_SECRET_KEY;
 
         if (!flwSecretKey) {
@@ -43,10 +28,18 @@ exports.verifyPayment = async (req, res) => {
 
         // Check if truly successful
         if (verifiedData.status === 'successful' && verifiedData.amount >= amount && verifiedData.currency === currency) {
-            // Payment is valid!
 
-            const ticketId = generateTicketId(); // Generate ticket
+            const tierName = ticketDetails?.tierName || 'Standard';
+            let count = 1;
+            if (db) {
+                const snapshot = await db.collection('bookings')
+                    .where('tierName', '==', tierName)
+                    .get();
+                count = snapshot.size + 1;
+            }
+            const ticketId = generateTicketId(tierName, count);
             const timestamp = new Date().toISOString();
+            const googleMapsLink = 'https://www.google.com/maps/search/?api=1&query=Mombasa+Marine+Park';
 
             // Save booking
             const bookingData = {
@@ -58,7 +51,7 @@ exports.verifyPayment = async (req, res) => {
                 customerName: customer.name,
                 customerEmail: customer.email,
                 customerPhone: customer.phone,
-                eventName: eventName || 'Event',
+                eventName: eventName || 'The Grey Pageant',
                 tierName: ticketDetails?.tierName || 'Standard',
                 ticketId,
                 status: 'PAID',
@@ -69,14 +62,28 @@ exports.verifyPayment = async (req, res) => {
                 await db.collection('bookings').add(bookingData);
             }
 
-            // Send SMS
-            const userMessage = `✅ Payment Confirmed! Ticket: ${ticketId}\nEvent: ${eventName}\nAmt: ${currency} ${amount}\nEnjoy!`;
+            // Send Notifications
+            const userMessage = `✅ Payment Confirmed!\n🎫 Ticket: ${ticketId}\nEvent: ${eventName}\nAmt: ${currency} ${amount}\n📍 Location: Marine Park\n🗺 Direction: ${googleMapsLink}\n\nSee you there!`;
             const adminMessage = `🔔 New Flutterwave Payment!\nAmount: ${currency} ${amount}\nUser: ${customer.name} (${customer.phone})`;
-            const ADMIN_PHONE = process.env.ADMIN_PHONE || '+254712369221';
+            const ADMIN_PHONE = process.env.ADMIN_PHONE || '+254794173314';
 
-            // Send SMS (fails silently if key missing)
+            // Send SMS
             if (customer.phone) await sendSMS(customer.phone, userMessage);
             await sendSMS(ADMIN_PHONE, adminMessage);
+            await sendAdminEmail('🔔 New Flutterwave Payment', `<p><strong>Success!</strong></p><p><strong>Amount:</strong> ${currency} ${amount}</p><p><strong>User:</strong> ${customer.name} (${customer.phone})</p><p><strong>Event:</strong> ${eventName}</p><p><strong>Ticket:</strong> ${ticketId}</p>`);
+
+            // Send Email
+            if (customer.email) {
+                await sendTicketEmail({
+                    email: customer.email,
+                    name: customer.name,
+                    ticketId,
+                    eventName: eventName || 'The Grey Pageant',
+                    mpesaCode: transactionId,
+                    amount: verifiedData.amount,
+                    tierName: bookingData.tierName
+                });
+            }
 
             res.json({
                 status: 'success',
@@ -85,7 +92,7 @@ exports.verifyPayment = async (req, res) => {
             });
 
         } else {
-            res.status(400).json({ status: 'failed', message: 'Payment verification failed or amount mismatch.' });
+            res.status(400).json({ status: 'failed', message: 'Payment verification failed.' });
         }
 
     } catch (error) {

@@ -3,6 +3,8 @@ const router = express.Router();
 
 // Placeholder controllers (will be implemented next)
 const mpesaController = require('../controllers/mpesaController');
+const adminController = require('../controllers/adminController');
+const manualPaymentController = require('../controllers/manualPaymentController');
 
 
 const eventController = {
@@ -45,11 +47,24 @@ router.post('/callback', mpesaController.handleCallback);
 // 4. Manual Verification
 router.post('/verify-payment', mpesaController.submitManualVerification);
 
+// 5. Query Transaction Status
+router.post('/transaction-status', mpesaController.queryTransactionStatus);
+
 
 
 
 // 7. Manual M-Pesa Payment
-const manualPaymentController = require('../controllers/manualPaymentController');
 router.post('/manual-pay', manualPaymentController.processManualPayment);
+
+// --- Admin Endpoints ---
+
+// 8. Admin Analytics
+router.get('/admin/analytics', adminController.getAnalytics);
+
+// 9. Admin Verify Manual Payment
+router.post('/admin/verify-payment', adminController.verifyManualPayment);
+
+// 10. Admin Resend Ticket
+router.post('/admin/resend-ticket', adminController.resendTicket);
 
 module.exports = router;
