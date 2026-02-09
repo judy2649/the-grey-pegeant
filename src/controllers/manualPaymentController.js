@@ -68,10 +68,24 @@ exports.processManualPayment = async (req, res) => {
             db ? db.collection('bookings')
                 .where('tierName', '==', safeTierName)
                 .where('status', '==', 'CONFIRMED')
+                .get() : Promise.resolve({ size: 0 }),
+
+            // D) Global Capacity Check (600 max)
+            db ? db.collection('bookings')
+                .where('status', 'in', ['PAID', 'CONFIRMED', 'VERIFIED'])
                 .get() : Promise.resolve({ size: 0 })
         ]);
 
         // --- Post-Check Validation ---
+
+        // 0. Global Capacity Check
+        const totalBooked = globalCount.size || 0;
+        if (totalBooked >= 600) {
+            return res.status(400).json({
+                success: false,
+                message: 'Sold Out! The event has reached its maximum capacity of 600 tickets.'
+            });
+        }
 
         // 1. Validate Duplicate
         if (!duplicateCheck.empty) {

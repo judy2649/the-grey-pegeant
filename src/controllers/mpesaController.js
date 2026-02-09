@@ -28,6 +28,19 @@ exports.initiateSTKPush = async (req, res) => {
         const transactionRef = generateTransactionRef();
         const conversationId = generateConversationId();
 
+        // Global Capacity Check (600 max)
+        if (db) {
+            const globalSnapshot = await db.collection('bookings')
+                .where('status', 'in', ['PAID', 'CONFIRMED', 'VERIFIED'])
+                .get();
+
+            if (globalSnapshot.size >= 600) {
+                return res.status(400).json({
+                    error: 'Sold Out! The event has reached its maximum capacity of 600 tickets.'
+                });
+            }
+        }
+
         console.log(`📱 Initiating C2B payment for ${formattedPhone}, Amount: ${amount} KES`);
 
         // C2B Single Stage Payment Payload
@@ -139,6 +152,22 @@ exports.handleCallback = async (req, res) => {
         }
 
         const tierName = pendingTxn?.tierName || 'Normal';
+
+        // Global Capacity Check (600 max)
+        if (db) {
+            const globalSnapshot = await db.collection('bookings')
+                .where('status', 'in', ['PAID', 'CONFIRMED', 'VERIFIED'])
+                .get();
+
+            if (globalSnapshot.size >= 600) {
+                console.warn('🛑 Capacity Reached! Rejecting successful payment callback.');
+                return res.status(400).json({
+                    result: 'fail',
+                    message: 'Capacity reached. No more tickets can be issued.'
+                });
+            }
+        }
+
         let count = 1;
         if (db) {
             const snapshot = await db.collection('bookings')
