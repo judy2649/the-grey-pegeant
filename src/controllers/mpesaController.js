@@ -267,7 +267,38 @@ exports.submitManualVerification = async (req, res) => {
             return res.status(400).json({ error: 'Missing transaction ID or phone number' });
         }
 
-        const tierName = amount > 1000 ? 'VIP' : 'Normal';
+        // 1. Duplicate Detection
+        if (db) {
+            const existing = await db.collection('bookings')
+                .where('mpesaTransactionId', '==', transactionId.toUpperCase())
+                .limit(1)
+                .get();
+            if (!existing.empty) {
+                return res.status(400).json({ error: 'This M-Pesa code has already been used!' });
+            }
+        }
+
+        // 2. Real M-Pesa API Verification
+        try {
+            console.log(`🔍 Verifying real-time status: ${transactionId}`);
+            const apiVerify = await makeOpenApiRequest('/queryTransactionStatus/', {
+                input_QueryReference: transactionId.toUpperCase(),
+                input_ServiceProviderCode: MPESA_CONFIG.serviceProviderCode,
+                input_ThirdPartyConversationID: generateConversationId(),
+                input_Country: 'KEN'
+            });
+
+            if (apiVerify.output_ResponseCode !== 'INS-0') {
+                console.warn('⚠️ M-Pesa API verification failed:', apiVerify.output_ResponseDesc);
+                if (process.env.MPESA_ENV === 'production') {
+                    return res.status(400).json({ error: 'Invalid M-Pesa code: Transaction not found or failed.' });
+                }
+            }
+        } catch (apiError) {
+            console.error('⚠️ M-Pesa API Verification Error:', apiError.message);
+        }
+
+        const tierName = amount >= 1000 ? 'VVIP' : (amount >= 500 ? 'VIP' : 'Normal');
 
         let count = 1;
         if (db) {
