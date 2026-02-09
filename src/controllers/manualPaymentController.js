@@ -163,10 +163,14 @@ exports.processManualPayment = async (req, res) => {
             message: 'Payment details submitted for verification!',
             bookingId: savedId,
             ticketId: ticketId,
-            notifications: results.map(r => ({
-                status: r.status,
-                value: r.value
-            }))
+            notificationSummary: results.map(r => {
+                const val = r.value || {};
+                return {
+                    status: r.status,
+                    providerStatus: val.status || 'unknown',
+                    providerData: val.data || (val.error ? val.error : 'N/A')
+                };
+            })
         });
 
     } catch (error) {
