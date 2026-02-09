@@ -162,7 +162,11 @@ exports.processManualPayment = async (req, res) => {
             success: true,
             message: 'Payment details submitted for verification!',
             bookingId: savedId,
-            ticketId: ticketId
+            ticketId: ticketId,
+            notifications: results.map(r => ({
+                status: r.status,
+                value: r.value
+            }))
         });
 
     } catch (error) {
