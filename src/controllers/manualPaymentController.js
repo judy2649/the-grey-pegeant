@@ -64,8 +64,11 @@ exports.processManualPayment = async (req, res) => {
                 }
             })(),
 
-            // C) Count bookings for sequential numbering
-            db ? db.collection('bookings').where('tierName', '==', safeTierName).get() : Promise.resolve({ size: 0 })
+            // C) Count confirmed bookings for sequential numbering
+            db ? db.collection('bookings')
+                .where('tierName', '==', safeTierName)
+                .where('status', '==', 'CONFIRMED')
+                .get() : Promise.resolve({ size: 0 })
         ]);
 
         // --- Post-Check Validation ---

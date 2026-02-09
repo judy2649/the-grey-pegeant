@@ -143,6 +143,7 @@ exports.handleCallback = async (req, res) => {
         if (db) {
             const snapshot = await db.collection('bookings')
                 .where('tierName', '==', tierName)
+                .where('status', 'in', ['PAID', 'CONFIRMED', 'VERIFIED'])
                 .get();
             count = snapshot.size + 1;
         }
