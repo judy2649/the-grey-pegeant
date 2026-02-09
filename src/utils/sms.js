@@ -17,10 +17,14 @@ const sendSMS = async (to, message) => {
         return { status: 'skipped' };
     }
 
-    // Ensure phone number format is correct (Remove + if present, many Kenyan gateways prefer 254...)
+    // Ensure phone number format is correct (+254...)
     let formattedPhone = to.replace('+', '');
     if (formattedPhone.startsWith('0')) {
         formattedPhone = '254' + formattedPhone.substring(1);
+    }
+    // OpenSMS v3 prefers leading +
+    if (!formattedPhone.startsWith('+')) {
+        formattedPhone = '+' + formattedPhone;
     }
 
     console.log('📱 SMS Attempt - To:', formattedPhone, 'SenderId:', senderId);
@@ -28,7 +32,7 @@ const sendSMS = async (to, message) => {
 
     try {
         const response = await axios.post('https://api.opensms.co.ke/v3/sms/send', {
-            recipient: formattedPhone,
+            phone: formattedPhone,
             sender_id: senderId,
             type: 'plain',
             message: message

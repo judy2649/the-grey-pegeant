@@ -122,11 +122,15 @@ exports.processManualPayment = async (req, res) => {
         const ticketMsg = `✅ Your Ticket for ${eventName} is CONFIRMED!\n🎫 Ticket: ${ticketId}\n📍 Location: Marine Park\n🗺 Direction: ${googleMapsLink}\n\nSee you there!`;
 
         try {
-            // A) To User
-            await sendSMS(formattedUserPhone, ticketMsg);
+            console.log('📤 Sending parallel notifications...');
+            const notifications = [];
 
+            // 1. To User (SMS)
+            notifications.push(sendSMS(formattedUserPhone, ticketMsg));
+
+            // 2. To User (Email)
             if (email) {
-                await sendTicketEmail({
+                notifications.push(sendTicketEmail({
                     email,
                     name,
                     ticketId,
@@ -134,15 +138,21 @@ exports.processManualPayment = async (req, res) => {
                     mpesaCode: mpesaCode.toUpperCase(),
                     amount,
                     tierName
-                });
+                }));
             }
 
-            // B) To Admin
+            // 3. To Admin (SMS & Email)
             const adminMsg = `💰 New Payment Auto-Approved!\nCode: ${mpesaCode.toUpperCase()}\nUser: ${name} (${phoneNumber})\nAmt: KES ${amount}`;
-            await sendSMS(ADMIN_PHONE, adminMsg);
-            await sendAdminEmail('💰 New Payment Auto-Approved', `<p><strong>Manual Payment Auto-Approved!</strong></p><p><strong>Code:</strong> ${mpesaCode.toUpperCase()}</p><p><strong>User:</strong> ${name} (${phoneNumber})</p><p><strong>Amount:</strong> KES ${amount}</p>`);
+            notifications.push(sendSMS(ADMIN_PHONE, adminMsg));
+            notifications.push(sendAdminEmail('💰 New Payment Auto-Approved', `<p><strong>Manual Payment Auto-Approved!</strong></p><p><strong>Code:</strong> ${mpesaCode.toUpperCase()}</p><p><strong>User:</strong> ${name} (${phoneNumber})</p><p><strong>Amount:</strong> KES ${amount}</p>`));
 
-            console.log('✅ Auto-approval notifications sent');
+            // Execute all notifications and WAIT for them (to prevent Vercel killing the process)
+            const results = await Promise.allSettled(notifications);
+
+            const failed = results.filter(r => r.status === 'rejected' || (r.value && r.value.status === 'failed'));
+            if (failed.length > 0) console.warn(`⚠️ Some notifications failed: ${failed.length}`);
+            else console.log('✅ All notifications sent successfully');
+
         } catch (error) {
             console.error('⚠️ Notification error:', error.message);
         }
