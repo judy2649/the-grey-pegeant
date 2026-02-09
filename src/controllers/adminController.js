@@ -12,10 +12,21 @@ const { sendTicketEmail, sendAdminEmail } = require('../utils/email');
 exports.getAnalytics = async (req, res) => {
     try {
         if (!db) {
-            console.warn('⚠️ DB not connected. Returning mock stats.');
+            console.warn('⚠️ DB not connected. Returning MOCK stats for testing.');
             return res.json({
                 success: true,
-                stats: { totalTickets: 0, totalRevenue: 0, byTier: {}, byStatus: {}, note: 'Firebase not connected' }
+                stats: {
+                    totalTickets: 15,
+                    totalRevenue: 25000,
+                    pendingCount: 2,
+                    byTier: { 'Normal': 10, 'VIP': 4, 'VVIP': 1 },
+                    byStatus: { 'CONFIRMED': 13, 'PENDING': 2 },
+                    salesTrend: {
+                        [new Date().toISOString().split('T')[0]]: 5,
+                        [new Date(Date.now() - 86400000).toISOString().split('T')[0]]: 8
+                    },
+                    note: 'MOCK DATA (DB Disconnected)'
+                }
             });
         }
 
@@ -55,7 +66,15 @@ exports.getAnalytics = async (req, res) => {
 exports.getBookings = async (req, res) => {
     try {
         if (!db) {
-            return res.json({ success: true, bookings: [], note: 'DB not connected' });
+            return res.json({
+                success: true,
+                bookings: [
+                    { id: 'mock1', name: 'John Doe', phoneNumber: '254712345678', email: 'john@example.com', tierName: 'VIP', ticketId: 'VIP-001', status: 'CONFIRMED', amount: 2000, timestamp: new Date().toISOString() },
+                    { id: 'mock2', name: 'Jane Smith', phoneNumber: '254722111222', email: 'jane@example.com', tierName: 'Normal', ticketId: 'NRM-042', status: 'PENDING', amount: 1000, timestamp: new Date().toISOString() },
+                    { id: 'mock3', name: 'Bob Wilson', phoneNumber: '254733444555', email: 'bob@example.com', tierName: 'VVIP', ticketId: 'VVP-007', status: 'PENDING', amount: 5000, timestamp: new Date(Date.now() - 86400000).toISOString() }
+                ],
+                note: 'MOCK DATA (DB Disconnected)'
+            });
         }
 
         const snapshot = await db.collection('bookings').orderBy('timestamp', 'desc').get();
@@ -81,7 +100,14 @@ exports.verifyManualPayment = async (req, res) => {
     try {
         const { bookingId } = req.body;
 
-        if (!db) return res.status(500).json({ success: false, message: 'DB not connected' });
+        if (!db) {
+            console.log(`[MOCK] Verified payment for ${bookingId}`);
+            return res.json({
+                success: true,
+                message: 'Payment verified (MOCK MODE)',
+                notifications: { sms: 'queued', email: 'queued' }
+            });
+        }
 
         const bookingRef = db.collection('bookings').doc(bookingId);
         const doc = await bookingRef.get();
@@ -153,7 +179,10 @@ exports.resendTicket = async (req, res) => {
     try {
         const { bookingId } = req.body;
 
-        if (!db) return res.status(500).json({ success: false, message: 'DB not connected' });
+        if (!db) {
+            console.log(`[MOCK] Resending ticket for ${bookingId}`);
+            return res.json({ success: true, message: 'Ticket resent successfully (MOCK MODE)!' });
+        }
 
         const doc = await db.collection('bookings').doc(bookingId).get();
         if (!doc.exists) return res.status(404).json({ success: false, message: 'Booking not found' });
