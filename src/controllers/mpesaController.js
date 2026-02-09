@@ -267,48 +267,49 @@ exports.submitManualVerification = async (req, res) => {
             return res.status(400).json({ error: 'Missing transaction ID or phone number' });
         }
 
-        // 1. Duplicate Detection
-        if (db) {
-            const existing = await db.collection('bookings')
-                .where('mpesaTransactionId', '==', transactionId.toUpperCase())
-                .limit(1)
-                .get();
-            if (!existing.empty) {
-                return res.status(400).json({ error: 'This M-Pesa code has already been used!' });
-            }
-        }
+        // 1. Parallelize Checks: Duplicate Detection, API Verification, and Tier Count
+        const mpesaRef = transactionId.toUpperCase();
+        const safeTierName = amount >= 1000 ? 'VVIP' : (amount >= 500 ? 'VIP' : 'Normal');
 
-        // 2. Real M-Pesa API Verification
-        try {
-            console.log(`🔍 Verifying real-time status: ${transactionId}`);
-            const apiVerify = await makeOpenApiRequest('/queryTransactionStatus/', {
-                input_QueryReference: transactionId.toUpperCase(),
-                input_ServiceProviderCode: MPESA_CONFIG.serviceProviderCode,
-                input_ThirdPartyConversationID: generateConversationId(),
-                input_Country: 'KEN'
-            });
+        console.log(`⚡ Parallelizing checks for ${mpesaRef}...`);
 
-            if (apiVerify.output_ResponseCode !== 'INS-0') {
-                console.warn('⚠️ M-Pesa API verification failed:', apiVerify.output_ResponseDesc);
-                if (process.env.MPESA_ENV === 'production') {
-                    return res.status(400).json({ error: 'Invalid M-Pesa code: Transaction not found or failed.' });
+        const [duplicateCheck, apiVerify, tierCount] = await Promise.all([
+            // A) Check for duplicates
+            db ? db.collection('bookings').where('mpesaTransactionId', '==', mpesaRef).limit(1).get() : Promise.resolve({ empty: true }),
+
+            // B) Verify with Safaricom API
+            (async () => {
+                try {
+                    return await makeOpenApiRequest('/queryTransactionStatus/', {
+                        input_QueryReference: mpesaRef,
+                        input_ServiceProviderCode: MPESA_CONFIG.serviceProviderCode,
+                        input_ThirdPartyConversationID: generateConversationId(),
+                        input_Country: MPESA_CONFIG.country
+                    });
+                } catch (e) {
+                    console.error('⚠️ Safaricom API error:', e.message);
+                    return { error: true };
                 }
-            }
-        } catch (apiError) {
-            console.error('⚠️ M-Pesa API Verification Error:', apiError.message);
+            })(),
+
+            // C) Count bookings for sequential numbering
+            db ? db.collection('bookings').where('tierName', '==', safeTierName).get() : Promise.resolve({ size: 0 })
+        ]);
+
+        // --- Post-Check Validation ---
+
+        // 1. Validate Duplicate
+        if (!duplicateCheck.empty) {
+            return res.status(400).json({ error: 'This M-Pesa code has already been used!' });
         }
 
-        const tierName = amount >= 1000 ? 'VVIP' : (amount >= 500 ? 'VIP' : 'Normal');
-
-        let count = 1;
-        if (db) {
-            const snapshot = await db.collection('bookings')
-                .where('tierName', '==', tierName)
-                .get();
-            count = snapshot.size + 1;
+        // 2. Validate API Result (Strict in production)
+        if (process.env.MPESA_ENV === 'production' && apiVerify.output_ResponseCode !== 'INS-0') {
+            return res.status(400).json({ error: 'Invalid M-Pesa code: Transaction not found in Safaricom records.' });
         }
 
-        const ticketId = generateTicketId(tierName, count);
+        const count = (tierCount.size || 0) + 1;
+        const ticketId = generateTicketId(safeTierName, count);
         const formattedPhone = formatPhoneNumber(phoneNumber);
 
         const bookingData = {

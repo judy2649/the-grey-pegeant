@@ -125,7 +125,7 @@ const makeOpenApiRequest = async (endpoint, payload) => {
                 'Content-Type': 'application/json',
                 'Origin': '*'
             },
-            timeout: 30000 // 30 second timeout
+            timeout: 8000 // 8 second timeout for serverless stability
         });
 
         return response.data;

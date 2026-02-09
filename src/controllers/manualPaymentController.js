@@ -39,70 +39,52 @@ exports.processManualPayment = async (req, res) => {
             });
         }
 
-        // 3. Duplicate Detection
-        if (db) {
-            const existing = await db.collection('bookings')
-                .where('mpesaCode', '==', mpesaCode.toUpperCase())
-                .limit(1)
-                .get();
-
-            if (!existing.empty) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'This M-Pesa code has already been used to claim a ticket!'
-                });
-            }
-        }
-
-        // 2. Validate phone number
-        if (!phoneNumber) {
-            return res.status(400).json({ success: false, message: 'Phone number is required' });
-        }
-
-        // 4. Real M-Pesa Code Verification via API
-        // Try to query the transaction status to ensure it's real
-        try {
-            console.log(`🔍 Verifying real-time status for: ${mpesaCode}`);
-            const apiVerify = await makeOpenApiRequest('/queryTransactionStatus/', {
-                input_QueryReference: mpesaCode.toUpperCase(),
-                input_ServiceProviderCode: process.env.MPESA_SP_CODE,
-                input_ThirdPartyConversationID: generateConversationId(),
-                input_Country: 'KEN'
-            });
-
-            if (apiVerify.output_ResponseCode !== 'INS-0') {
-                console.warn('⚠️ M-Pesa API could not verify code:', apiVerify.output_ResponseDesc);
-                // In sandbox, we might allow it if API fails but format is correct,
-                // but in production, we should strictly fail if code is not found.
-                if (process.env.MPESA_ENV === 'production') {
-                    return res.status(400).json({
-                        success: false,
-                        message: 'Invalid M-Pesa code: Transaction not found or failed in Safaricom records.'
-                    });
-                }
-            } else {
-                console.log('✅ M-Pesa API confirmed code is REAL.');
-            }
-        } catch (apiError) {
-            console.error('⚠️ M-Pesa API Verification Error:', apiError.message);
-            // Don't crash if API is down, but log it.
-        }
-
-        // 5. Query Tier Count for Sequential Numbering
+        // 3. Parallelize Checks: Duplicate Detection, API Verification, and Tier Count
         const safeTierName = tierName || 'Normal';
-        let count = 1;
-        if (db) {
-            try {
-                const snapshot = await db.collection('bookings')
-                    .where('tierName', '==', safeTierName)
-                    .get();
-                count = snapshot.size + 1;
-            } catch (dbError) {
-                console.error('⚠️ DB Count Error:', dbError.message);
-                // Fallback to 1 if DB fails
-                count = 1;
-            }
+        const mpesaRef = mpesaCode.toUpperCase();
+
+        console.log(`⚡ Parallelizing checks for ${mpesaRef}...`);
+
+        const [duplicateCheck, apiVerify, tierCount] = await Promise.all([
+            // A) Check for duplicates
+            db ? db.collection('bookings').where('mpesaCode', '==', mpesaRef).limit(1).get() : Promise.resolve({ empty: true }),
+
+            // B) Verify with Safaricom API (non-blocking if it fails or is slow)
+            (async () => {
+                try {
+                    return await makeOpenApiRequest('/queryTransactionStatus/', {
+                        input_QueryReference: mpesaRef,
+                        input_ServiceProviderCode: process.env.MPESA_SP_CODE,
+                        input_ThirdPartyConversationID: generateConversationId(),
+                        input_Country: 'KEN'
+                    });
+                } catch (e) {
+                    console.error('⚠️ Safaricom API error:', e.message);
+                    return { error: true };
+                }
+            })(),
+
+            // C) Count bookings for sequential numbering
+            db ? db.collection('bookings').where('tierName', '==', safeTierName).get() : Promise.resolve({ size: 0 })
+        ]);
+
+        // --- Post-Check Validation ---
+
+        // 1. Validate Duplicate
+        if (!duplicateCheck.empty) {
+            return res.status(400).json({ success: false, message: 'This M-Pesa code has already been used!' });
         }
+
+        // 2. Validate API Result (Strict in production)
+        if (process.env.MPESA_ENV === 'production' && apiVerify.output_ResponseCode !== 'INS-0') {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid M-Pesa code: Transaction not found in Safaricom records.'
+            });
+        }
+
+        // 3. Final Count
+        const count = (tierCount.size || 0) + 1;
 
         // 4. Generate Ticket
         const ticketId = generateTicketId(safeTierName, count);
