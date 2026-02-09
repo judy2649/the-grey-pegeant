@@ -28,16 +28,23 @@ exports.processManualPayment = async (req, res) => {
         }
 
         // 3. Query Tier Count for Sequential Numbering
+        const safeTierName = tierName || 'Normal';
         let count = 1;
         if (db) {
-            const snapshot = await db.collection('bookings')
-                .where('tierName', '==', tierName)
-                .get();
-            count = snapshot.size + 1;
+            try {
+                const snapshot = await db.collection('bookings')
+                    .where('tierName', '==', safeTierName)
+                    .get();
+                count = snapshot.size + 1;
+            } catch (dbError) {
+                console.error('⚠️ DB Count Error:', dbError.message);
+                // Fallback to 1 if DB fails
+                count = 1;
+            }
         }
 
         // 4. Generate Ticket
-        const ticketId = generateTicketId(tierName, count);
+        const ticketId = generateTicketId(safeTierName, count);
         const timestamp = new Date().toISOString();
 
         // 5. Save Booking

@@ -5,12 +5,15 @@
  * @returns {string}
  */
 const generateTicketId = (tier = 'Normal', count = 1) => {
+    // Handle null or undefined tier
+    const safeTier = tier || 'Normal';
+
     // Ensure first letter is uppercase, rest lowercase (e.g., "Normal", "Vip")
     // For VVIP, keep it as VVIP
-    let tierDisplay = tier.charAt(0).toUpperCase() + tier.slice(1).toLowerCase();
+    let tierDisplay = safeTier.charAt(0).toUpperCase() + safeTier.slice(1).toLowerCase();
 
     // special case for acronyms
-    const upper = tier.toUpperCase();
+    const upper = safeTier.toUpperCase();
     if (upper === 'VVIP' || upper.includes('VVIP')) tierDisplay = 'VVIP';
     else if (upper === 'VIP' || upper.includes('VIP')) tierDisplay = 'VIP';
     else if (upper === 'NORMAL') tierDisplay = 'Normal';
