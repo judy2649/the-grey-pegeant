@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Event Listeners for Filters
     document.getElementById('ticket-search').addEventListener('input', renderBookings);
+    document.getElementById('customer-search').addEventListener('input', renderCustomers);
     document.getElementById('filter-status').addEventListener('change', renderBookings);
     document.getElementById('filter-tier').addEventListener('change', renderBookings);
     document.getElementById('export-btn').addEventListener('click', exportToCSV);
@@ -54,6 +55,7 @@ function switchTab(tabId) {
     // Refresh stats/bookings when switching to relevant tabs
     if (tabId === 'summary') fetchStats();
     if (tabId === 'tickets') fetchBookings();
+    if (tabId === 'customers') renderCustomers();
 }
 
 function exportToCSV() {
@@ -258,6 +260,75 @@ function renderBookings() {
     });
 
     // Refresh icons for new rows
+    lucide.createIcons();
+}
+
+function renderCustomers() {
+    const tableBody = document.getElementById('customers-table-body');
+    const searchTerm = document.getElementById('customer-search').value.toLowerCase();
+
+    // Group bookings by customer (using phoneNumber as unique key)
+    const customersMap = {};
+
+    allBookings.forEach(b => {
+        const key = b.phoneNumber || 'Unknown';
+        if (!customersMap[key]) {
+            customersMap[key] = {
+                name: b.name || 'Unknown',
+                phone: b.phoneNumber || '',
+                email: b.email || '',
+                bookingCount: 0,
+                totalSpent: 0,
+                bookings: []
+            };
+        }
+
+        customersMap[key].bookingCount++;
+        customersMap[key].totalSpent += (parseFloat(b.amount) || 0);
+        customersMap[key].bookings.push(b);
+    });
+
+    const customers = Object.values(customersMap);
+
+    const filtered = customers.filter(c => {
+        return (c.name || '').toLowerCase().includes(searchTerm) ||
+            (c.phone || '').toLowerCase().includes(searchTerm) ||
+            (c.email || '').toLowerCase().includes(searchTerm);
+    });
+
+    if (filtered.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 40px;">No customers found.</td></tr>';
+        return;
+    }
+
+    tableBody.innerHTML = '';
+    filtered.forEach(customer => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>
+                <div style="font-weight: 700;">${customer.name}</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">${customer.email || 'No email'}</div>
+            </td>
+            <td>
+                <div style="font-weight: 500;">${customer.phone || 'N/A'}</div>
+            </td>
+            <td>
+                <span style="background: var(--primary-light); color: var(--primary); padding: 4px 10px; border-radius: 8px; font-weight: 700;">
+                    ${customer.bookingCount} Items
+                </span>
+            </td>
+            <td>
+                <div style="font-weight: 800; color: #0f172a;">KES ${customer.totalSpent.toLocaleString()}</div>
+            </td>
+            <td>
+                <button class="action-btn" title="View Details" onclick="switchTab('tickets'); document.getElementById('ticket-search').value = '${customer.phone}'; renderBookings();">
+                    <i data-lucide="eye"></i>
+                </button>
+            </td>
+        `;
+        tableBody.appendChild(tr);
+    });
+
     lucide.createIcons();
 }
 
