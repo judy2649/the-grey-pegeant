@@ -6,12 +6,55 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchStats();
     fetchBookings();
 
+    // Tab Switching Logic
+    const navItems = document.querySelectorAll('.nav-item[data-tab]');
+    navItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const tabId = item.getAttribute('data-tab');
+            switchTab(tabId);
+        });
+    });
+
     // Event Listeners for Filters
     document.getElementById('ticket-search').addEventListener('input', renderBookings);
     document.getElementById('filter-status').addEventListener('change', renderBookings);
     document.getElementById('filter-tier').addEventListener('change', renderBookings);
     document.getElementById('export-btn').addEventListener('click', exportToCSV);
 });
+
+function switchTab(tabId) {
+    // Update active nav item
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.getAttribute('data-tab') === tabId) {
+            item.classList.add('active');
+        }
+    });
+
+    // Update visibility of views
+    document.querySelectorAll('.dashboard-view').forEach(view => {
+        view.style.display = 'none';
+    });
+
+    const targetView = document.getElementById(`view-${tabId}`);
+    if (targetView) {
+        targetView.style.display = 'block';
+    }
+
+    // Update Header Title
+    const titles = {
+        'summary': 'Overview',
+        'tickets': 'Ticket Management',
+        'customers': 'Customers',
+        'settings': 'Settings'
+    };
+    document.getElementById('current-view-title').innerText = titles[tabId] || 'Dashboard';
+
+    // Refresh stats/bookings when switching to relevant tabs
+    if (tabId === 'summary') fetchStats();
+    if (tabId === 'tickets') fetchBookings();
+}
 
 function exportToCSV() {
     if (allBookings.length === 0) {
