@@ -213,3 +213,40 @@ exports.resendTicket = async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 };
+
+// 11. Seed Booking (Admin Only - for missing bookings)
+exports.seedBooking = async (req, res) => {
+    try {
+        const { name, phoneNumber, email, tierName, amount, mpesaCode, ticketId, status } = req.body;
+
+        if (!db) {
+            return res.status(500).json({ success: false, message: 'Database not connected' });
+        }
+
+        const booking = {
+            name: name || 'Unknown',
+            phoneNumber: phoneNumber || '',
+            email: email || '',
+            tierName: tierName || 'Normal',
+            amount: amount || 200,
+            mpesaCode: mpesaCode || '',
+            ticketId: ticketId || 'NRM-001',
+            status: status || 'CONFIRMED',
+            timestamp: new Date().toISOString(),
+            notes: 'Manually seeded via admin API'
+        };
+
+        const docRef = await db.collection('bookings').add(booking);
+
+        res.json({
+            success: true,
+            message: 'Booking added successfully!',
+            bookingId: docRef.id,
+            booking
+        });
+
+    } catch (error) {
+        console.error('Seed Error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};

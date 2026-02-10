@@ -70,4 +70,8 @@ router.post('/admin/verify-payment', adminController.verifyManualPayment);
 // 10. Admin Resend Ticket
 router.post('/admin/resend-ticket', adminController.resendTicket);
 
+// 11. Admin Seed Booking (for missing bookings)
+router.post('/admin/seed-booking', adminController.seedBooking);
+
 module.exports = router;
+

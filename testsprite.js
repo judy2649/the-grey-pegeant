@@ -2,7 +2,7 @@ const axios = require('axios');
 require('dotenv').config();
 
 // Get the URL from the command line argument, or use the default
-const TARGET_URL = process.argv[2] || 'http://localhost:3000';
+const TARGET_URL = process.argv[2] || 'https://the-grey-pegeant.vercel.app';
 const BASE_URL = TARGET_URL.endsWith('/api') ? TARGET_URL : `${TARGET_URL}/api`;
 
 async function runTests() {
