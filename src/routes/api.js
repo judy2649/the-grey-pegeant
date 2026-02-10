@@ -73,5 +73,9 @@ router.post('/admin/resend-ticket', adminController.resendTicket);
 // 11. Admin Seed Booking (for missing bookings)
 router.post('/admin/seed-booking', adminController.seedBooking);
 
+// 12. Admin Delete Booking
+router.post('/admin/delete-booking', adminController.deleteBooking);
+
 module.exports = router;
+
 

@@ -250,3 +250,22 @@ exports.seedBooking = async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 };
+
+// 12. Delete Booking (Admin Only - for duplicates)
+exports.deleteBooking = async (req, res) => {
+    try {
+        const { bookingId } = req.body;
+
+        if (!db) {
+            return res.status(500).json({ success: false, message: 'Database not connected' });
+        }
+
+        await db.collection('bookings').doc(bookingId).delete();
+
+        res.json({ success: true, message: 'Booking deleted successfully!' });
+
+    } catch (error) {
+        console.error('Delete Error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
