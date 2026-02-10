@@ -88,12 +88,12 @@ function initSalesChart(salesTrend) {
             datasets: [{
                 label: 'Tickets Sold',
                 data: values,
-                borderColor: '#6366f1',
-                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                borderColor: '#ec4899',
+                backgroundColor: 'rgba(236, 72, 153, 0.1)',
                 fill: true,
                 tension: 0.4,
                 pointRadius: 4,
-                pointBackgroundColor: '#6366f1'
+                pointBackgroundColor: '#ec4899'
             }]
         },
         options: {
@@ -124,7 +124,7 @@ function initTierChart(byTier) {
             labels: labels,
             datasets: [{
                 data: values,
-                backgroundColor: ['#6366f1', '#a855f7', '#ec4899', '#f59e0b'],
+                backgroundColor: ['#db2777', '#ec4899', '#f472b6', '#fda4af'],
                 borderWidth: 0
             }]
         },
@@ -202,7 +202,7 @@ function renderBookings() {
             </td>
             <td>
                 ${(booking.status || 'PENDING').toLowerCase() === 'pending' ? `
-                    <button class="action-btn" title="Verify Payment" onclick="verifyPayment('${booking.id}', this)" style="background: #fef9c3; color: #ca8a04; margin-right: 8px;">
+                    <button class="action-btn" title="Verify Payment" onclick="verifyPayment('${booking.id}', this)" style="background: #fdf2f8; color: #db2777; border-color: #fbcfe8; margin-right: 8px;">
                         <i data-lucide="check-circle"></i>
                     </button>
                 ` : ''}
