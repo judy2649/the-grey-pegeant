@@ -133,8 +133,8 @@ function initSalesChart(salesTrend) {
             datasets: [{
                 label: 'Tickets Sold',
                 data: values,
-                borderColor: '#ec4899',
-                backgroundColor: 'rgba(236, 72, 153, 0.1)',
+                borderColor: '#f472b6',
+                backgroundColor: 'rgba(244, 114, 182, 0.2)',
                 fill: true,
                 tension: 0.4,
                 pointRadius: 4,
